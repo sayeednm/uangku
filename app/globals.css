@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-[#F0F4FF] text-gray-900 antialiased
+           transition-colors duration-300
+           dark:bg-[#0A0C14] dark:text-gray-100;
+  }
+}
+
+@layer components {
+  /* ── Primary Button — brand blue ─────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-[#1d6af5] text-white px-4 py-2.5 rounded-xl font-semibold text-sm
+           hover:bg-[#1558d6]
+           active:scale-[0.96] active:bg-[#1040a8]
+           focus:outline-none focus:ring-2 focus:ring-[#1d6af5]/40 focus:ring-offset-2
+           disabled:opacity-40 disabled:cursor-not-allowed
+           transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]
+           shadow-[0_2px_8px_rgba(29,106,245,0.3)]
+           hover:shadow-[0_4px_16px_rgba(29,106,245,0.4)]
+           dark:focus:ring-offset-[#0A0C14];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-white dark:bg-white/[0.07] text-gray-700 dark:text-gray-200
+           px-4 py-2.5 rounded-xl font-semibold text-sm
+           border border-gray-200/80 dark:border-white/[0.1]
+           hover:bg-gray-50 dark:hover:bg-white/[0.12]
+           active:scale-[0.96]
+           focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2
+           disabled:opacity-40 disabled:cursor-not-allowed
+           transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)];
+  }
+
+  /* ── Danger button ───────────────────── */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+           bg-red-500 text-white px-4 py-2.5 rounded-xl font-semibold text-sm
+           hover:bg-red-600 active:scale-[0.96]
+           focus:outline-none focus:ring-2 focus:ring-red-400/40 focus:ring-offset-2
+           disabled:opacity-40 disabled:cursor-not-allowed
+           transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)];
+  }
+
+  /* ── Inputs ──────────────────────────── */
+  .input {
+    @apply w-full px-3.5 py-3 rounded-xl text-sm
+           bg-white dark:bg-white/[0.06]
+           border border-gray-200/80 dark:border-white/[0.09]
+           text-gray-900 dark:text-gray-100
+           placeholder-gray-400 dark:placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-[#1d6af5]/30 focus:border-[#1d6af5]/50
+           focus:bg-white dark:focus:bg-white/[0.08]
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-all duration-200;
+  }
+
+  .input-error {
+    @apply border-red-300 focus:ring-red-400/30 focus:border-red-400
+           dark:border-red-500/50;
+  }
+
+  .label {
+    @apply block text-[11px] font-semibold text-gray-400 dark:text-gray-500
+           uppercase tracking-wider mb-2;
+  }
+
+  .error-text {
+    @apply text-xs text-red-500 mt-1.5;
+  }
+
+  /* ── Cards ───────────────────────────── */
+  .card {
+    @apply bg-white dark:bg-white/[0.04]
+           border border-gray-200/60 dark:border-white/[0.07]
+           rounded-2xl shadow-sm;
+  }
+
+  /* ── Nav link base ───────────────────── */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+           transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)];
+  }
+
+  .nav-link-active {
+    @apply bg-[#1d6af5] text-white shadow-[0_2px_8px_rgba(29,106,245,0.35)];
+  }
+
+  .nav-link-inactive {
+    @apply text-gray-500 dark:text-gray-400
+           hover:bg-[#1d6af5]/10 dark:hover:bg-[#1d6af5]/15
+           hover:text-[#1d6af5] dark:hover:text-[#60a5fa];
+  }
+}
+
+/* ══════════════════════════════════════════
+   ANIMATIONS
+══════════════════════════════════════════ */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideDown {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(100%); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position: 200% center; }
+}
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes spring {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.93); }
+  70%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes navPop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.88); }
+  70%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* ── Animation classes ── */
+.animate-fade-up   { animation: fadeUp   0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in   { animation: fadeIn   0.2s  ease both; }
+.animate-scale-in  { animation: scaleIn  0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-up  { animation: slideUp  0.35s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.animate-float     { animation: float 3s ease-in-out infinite; }
+.animate-spring    { animation: spring 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-count-up  { animation: countUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-nav-pop   { animation: navPop  0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Skeleton */
+.skeleton {
+  background: linear-gradient(90deg, #e8edf8 25%, #d8e0f0 37%, #e8edf8 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.05) 25%,
+    rgba(255,255,255,0.09) 37%,
+    rgba(255,255,255,0.05) 63%
+  );
+  background-size: 400% 100%;
+}
+
+/* Stagger */
+.stagger > *:nth-child(1) { animation-delay: 0ms;   }
+.stagger > *:nth-child(2) { animation-delay: 60ms;  }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+
+/* Page transition */
+.page-enter { animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
