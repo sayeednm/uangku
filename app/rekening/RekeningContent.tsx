@@ -1,9 +1,9 @@
-import { getAccounts } from '@/lib/rekening/queries'
+import { getAccounts, type AccountWithBalance } from '@/lib/rekening/queries'
 import AccountList from '@/components/rekening/AccountList'
 import { formatCurrency } from '@/lib/utils/currency'
 
 export default async function RekeningContent() {
-  let accounts = []
+  let accounts: AccountWithBalance[] = []
   let fetchError = false
 
   try {
@@ -21,7 +21,7 @@ export default async function RekeningContent() {
     )
   }
 
-  const totalBalance = accounts.reduce((sum: number, a: { current_balance: number }) => sum + a.current_balance, 0)
+  const totalBalance = accounts.reduce((sum, a) => sum + a.current_balance, 0)
 
   return (
     <div className="space-y-4">
