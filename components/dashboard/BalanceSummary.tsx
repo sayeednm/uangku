@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils/currency'
 import type { PeriodSummary } from '@/lib/dashboard/queries'
 
@@ -13,14 +14,15 @@ export default function BalanceSummary({ totalBalance, periodSummary, periodLabe
 
   return (
     <div className="space-y-3 animate-fade-up">
-      {/* Hero balance card — brand blue */}
-      <div className="relative overflow-hidden rounded-2xl px-6 py-6"
+      {/* Hero — clickable to /rekening */}
+      <Link
+        href="/rekening"
+        className="block relative overflow-hidden rounded-2xl px-6 py-6 active:scale-[0.98] transition-transform duration-150"
         style={{
-          background: 'linear-gradient(135deg, #1558d6 0%, #1d6af5 50%, #3b82f6 100%)',
+          background: 'linear-gradient(135deg, #1040a8 0%, #1d6af5 50%, #3b82f6 100%)',
           boxShadow: '0 8px 32px rgba(29,106,245,0.35)',
         }}
       >
-        {/* Decorative circles */}
         <div aria-hidden="true" className="absolute -top-10 -right-10 w-44 h-44 rounded-full bg-white/[0.08]" />
         <div aria-hidden="true" className="absolute -bottom-6 right-8 w-24 h-24 rounded-full bg-white/[0.05]" />
 
@@ -31,13 +33,21 @@ export default function BalanceSummary({ totalBalance, periodSummary, periodLabe
           {formatCurrency(totalBalance)}
         </p>
 
-        <div className="mt-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.12]">
-          <span className={`text-xs font-semibold ${isPositive ? 'text-white' : 'text-red-300'}`}>
-            {isPositive ? '↑' : '↓'} {formatCurrency(Math.abs(net))}
-          </span>
-          <span className="text-[10px] text-white/50">{periodLabel}</span>
+        <div className="mt-4 flex items-center justify-between">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.12]">
+            <span className={`text-xs font-semibold ${isPositive ? 'text-white' : 'text-red-300'}`}>
+              {isPositive ? '↑' : '↓'} {formatCurrency(Math.abs(net))}
+            </span>
+            <span className="text-[10px] text-white/50">{periodLabel}</span>
+          </div>
+          <div className="flex items-center gap-1 text-white/50">
+            <span className="text-[10px]">Lihat rekening</span>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
         </div>
-      </div>
+      </Link>
 
       {/* Income / Expense */}
       <div className="grid grid-cols-2 gap-3 stagger">
