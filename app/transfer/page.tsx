@@ -2,10 +2,10 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { getTransfers } from '@/lib/transfer/queries'
 import AppLayout from '@/components/layout/AppLayout'
-import TransferList from '@/components/transfer/TransferList'
 import ActionFeedback from '@/components/ui/ActionFeedback'
+import TransferContent from './TransferContent'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 
 interface PageProps {
   searchParams: Promise<{ page?: string }>
@@ -17,14 +17,11 @@ export default async function TransferPage({ searchParams }: PageProps) {
   if (authError || !user) redirect('/login')
 
   const params = await searchParams
-  const page = Math.max(1, parseInt(params.page ?? '1', 10))
-
-  const result = await getTransfers(page).catch(() => ({ data: [], total: 0, page: 1, pageSize: 20 }))
 
   return (
     <AppLayout userEmail={user.email ?? ''}>
       <div>
-        <div className="flex items-start justify-between gap-4 mb-8">
+        <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transfer</h1>
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Transfer dana antar rekening</p>
@@ -34,13 +31,11 @@ export default async function TransferPage({ searchParams }: PageProps) {
           </Link>
         </div>
 
-        <TransferList
-          transfers={result.data}
-          total={result.total}
-          page={result.page}
-          pageSize={result.pageSize}
-        />
         <Suspense fallback={null}><ActionFeedback /></Suspense>
+
+        <Suspense fallback={<PageSkeleton />}>
+          <TransferContent page={parseInt(params.page ?? '1', 10)} />
+        </Suspense>
       </div>
     </AppLayout>
   )
