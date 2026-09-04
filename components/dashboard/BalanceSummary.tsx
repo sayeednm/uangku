@@ -14,12 +14,12 @@ export default function BalanceSummary({ totalBalance, periodSummary, periodLabe
 
   return (
     <div className="space-y-3 animate-fade-up">
-      {/* Hero — clickable to /rekening */}
+      {/* Total Saldo — biru, clickable */}
       <Link
         href="/rekening"
         className="block relative overflow-hidden rounded-2xl px-6 py-6 active:scale-[0.98] transition-transform duration-150"
         style={{
-          background: 'linear-gradient(135deg, #1040a8 0%, #1d6af5 50%, #3b82f6 100%)',
+          background: 'linear-gradient(135deg, #1040a8 0%, #1d6af5 55%, #3b82f6 100%)',
           boxShadow: '0 8px 32px rgba(29,106,245,0.35)',
         }}
       >
@@ -49,36 +49,52 @@ export default function BalanceSummary({ totalBalance, periodSummary, periodLabe
         </div>
       </Link>
 
-      {/* Income / Expense */}
+      {/* Pemasukan + Pengeluaran — masing-masing solid color */}
       <div className="grid grid-cols-2 gap-3 stagger">
-        <div className="animate-fade-up bg-white dark:bg-white/[0.05] border border-gray-200/60 dark:border-white/[0.08] rounded-2xl px-4 py-3.5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center">
-              <svg className="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+        {/* Pemasukan — hijau */}
+        <div
+          className="animate-fade-up relative overflow-hidden rounded-2xl px-4 py-4"
+          style={{
+            background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+            boxShadow: '0 4px 16px rgba(16,185,129,0.3)',
+          }}
+        >
+          <div aria-hidden="true" className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/[0.08]" />
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
+              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
               </svg>
             </div>
-            <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Masuk</p>
+            <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wide">Pemasukan</p>
           </div>
-          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">
+          <p className="text-lg font-bold text-white tabular-nums leading-none">
             {formatCurrency(periodSummary.income)}
           </p>
-          <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1">{periodLabel}</p>
+          <p className="text-[10px] text-white/50 mt-1">{periodLabel}</p>
         </div>
 
-        <div className="animate-fade-up bg-white dark:bg-white/[0.05] border border-gray-200/60 dark:border-white/[0.08] rounded-2xl px-4 py-3.5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-lg bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
-              <svg className="w-3 h-3 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+        {/* Pengeluaran — merah/coral */}
+        <div
+          className="animate-fade-up relative overflow-hidden rounded-2xl px-4 py-4"
+          style={{
+            background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+            boxShadow: '0 4px 16px rgba(239,68,68,0.3)',
+          }}
+        >
+          <div aria-hidden="true" className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/[0.08]" />
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
+              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
             </div>
-            <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Keluar</p>
+            <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wide">Pengeluaran</p>
           </div>
-          <p className="text-lg font-bold text-red-500 dark:text-red-400 tabular-nums leading-none">
+          <p className="text-lg font-bold text-white tabular-nums leading-none">
             {formatCurrency(periodSummary.expense)}
           </p>
-          <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1">{periodLabel}</p>
+          <p className="text-[10px] text-white/50 mt-1">{periodLabel}</p>
         </div>
       </div>
     </div>
