@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import AddActionSheet from './AddActionSheet'
 
 const LEFT_LINKS = [
@@ -31,9 +31,20 @@ const RIGHT_LINKS = [
   },
 ]
 
+const ALL_LINKS = [...LEFT_LINKS, ...RIGHT_LINKS]
+
 export default function MobileNav() {
   const pathname = usePathname()
+  const router = useRouter()
   const [sheetOpen, setSheetOpen] = useState(false)
+
+  // Prefetch all nav routes on mount for instant navigation
+  useEffect(() => {
+    ALL_LINKS.forEach(link => router.prefetch(link.href))
+    router.prefetch('/transaksi/baru')
+    router.prefetch('/rekening')
+    router.prefetch('/transfer')
+  }, [router])
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === href
@@ -45,6 +56,11 @@ export default function MobileNav() {
     }
     return pathname.startsWith(href)
   }
+
+  const linkClass = (active: boolean) =>
+    `flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+      active ? 'text-[#1d6af5]' : 'text-gray-400 dark:text-gray-600'
+    }`
 
   return (
     <>
@@ -59,39 +75,25 @@ export default function MobileNav() {
         {LEFT_LINKS.map(link => {
           const active = isActive(link.href)
           return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                active
-                  ? 'text-[#1d6af5]'
-                  : 'text-gray-400 dark:text-gray-600 hover:text-[#1d6af5]/70'
-              }`}
+            <Link key={link.href} href={link.href} prefetch={true}
+              className={linkClass(active)}
               aria-current={active ? 'page' : undefined}
             >
-              {/* Icon container with active indicator */}
-              <div className={`relative flex items-center justify-center w-10 h-6 rounded-full transition-all duration-200 ${
+              <div className={`flex items-center justify-center w-10 h-6 rounded-full transition-all duration-200 ${
                 active ? 'bg-[#1d6af5]/10 dark:bg-[#1d6af5]/15' : ''
               }`}>
-                <svg
-                  className={`transition-all duration-200 ${active ? 'w-[22px] h-[22px]' : 'w-5 h-5'}`}
+                <svg className={`transition-all duration-200 ${active ? 'w-[22px] h-[22px]' : 'w-5 h-5'}`}
                   fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  strokeWidth={active ? 2.25 : 1.75}
-                  aria-hidden="true"
-                >
+                  strokeWidth={active ? 2.25 : 1.75} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d={link.icon} />
                 </svg>
               </div>
-              <span className={`text-[10px] font-semibold transition-all duration-200 ${
-                active ? 'text-[#1d6af5]' : ''
-              }`}>
-                {link.label}
-              </span>
+              <span className="text-[10px] font-semibold">{link.label}</span>
             </Link>
           )
         })}
 
-        {/* Center FAB — biru brand */}
+        {/* Center FAB */}
         <div className="flex-1 flex items-center justify-center">
           <button
             onClick={() => setSheetOpen(true)}
@@ -99,9 +101,8 @@ export default function MobileNav() {
               bg-[#1d6af5] hover:bg-[#1558d6]
               flex items-center justify-center
               shadow-[0_4px_20px_rgba(29,106,245,0.5)]
-              hover:shadow-[0_6px_24px_rgba(29,106,245,0.6)]
               active:scale-95 active:bg-[#1040a8]
-              transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]"
+              transition-all duration-200"
             aria-label="Tambah"
           >
             <svg
@@ -117,33 +118,20 @@ export default function MobileNav() {
         {RIGHT_LINKS.map(link => {
           const active = isActive(link.href)
           return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                active
-                  ? 'text-[#1d6af5]'
-                  : 'text-gray-400 dark:text-gray-600 hover:text-[#1d6af5]/70'
-              }`}
+            <Link key={link.href} href={link.href} prefetch={true}
+              className={linkClass(active)}
               aria-current={active ? 'page' : undefined}
             >
-              <div className={`relative flex items-center justify-center w-10 h-6 rounded-full transition-all duration-200 ${
+              <div className={`flex items-center justify-center w-10 h-6 rounded-full transition-all duration-200 ${
                 active ? 'bg-[#1d6af5]/10 dark:bg-[#1d6af5]/15' : ''
               }`}>
-                <svg
-                  className={`transition-all duration-200 ${active ? 'w-[22px] h-[22px]' : 'w-5 h-5'}`}
+                <svg className={`transition-all duration-200 ${active ? 'w-[22px] h-[22px]' : 'w-5 h-5'}`}
                   fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  strokeWidth={active ? 2.25 : 1.75}
-                  aria-hidden="true"
-                >
+                  strokeWidth={active ? 2.25 : 1.75} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d={link.icon} />
                 </svg>
               </div>
-              <span className={`text-[10px] font-semibold transition-all duration-200 ${
-                active ? 'text-[#1d6af5]' : ''
-              }`}>
-                {link.label}
-              </span>
+              <span className="text-[10px] font-semibold">{link.label}</span>
             </Link>
           )
         })}

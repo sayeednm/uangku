@@ -178,13 +178,18 @@ export default function DashboardClient({
   return (
     <div className="space-y-10">
       {/* Header */}
-      <div className="animate-fade-up mb-2">
-        <p className="text-xs text-gray-400 dark:text-gray-500 font-medium tracking-wide">Selamat datang kembali 👋</p>
-        <div className="flex items-center justify-between mt-1 gap-2">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Ringkasan</h1>
+      <div className="animate-fade-up mb-4">
+        <p className="text-xs text-gray-400 dark:text-gray-500 font-medium tracking-wide">
+          Selamat datang kembali 👋
+        </p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight mt-0.5">
+          Ringkasan
+        </h1>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{monthLabel}</p>
+        {/* Period selector — full width row, tidak terpotong */}
+        <div className="mt-3">
           <PeriodSelector value={period} onChange={setPeriod} />
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{monthLabel}</p>
       </div>
 
       {/* Balance summary */}

@@ -55,6 +55,7 @@ export default function AppSidebar({ userEmail }: AppSidebarProps) {
           const active = isActive(link.href)
           return (
             <Link key={link.href} href={link.href}
+              prefetch={true}
               className={linkClass(active)}
               aria-current={active ? 'page' : undefined}
             >
@@ -73,6 +74,7 @@ export default function AppSidebar({ userEmail }: AppSidebarProps) {
           const active = isActive(link.href)
           return (
             <Link key={link.href} href={link.href}
+              prefetch={true}
               className={linkClass(active)}
               aria-current={active ? 'page' : undefined}
             >

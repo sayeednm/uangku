@@ -9,26 +9,33 @@ interface PeriodSelectorProps {
 
 export default function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
   return (
-    <div className="flex items-center gap-1 bg-blue-50 dark:bg-[#1d6af5]/10 rounded-xl p-1"
+    <div
+      className="flex items-center gap-1.5 p-1 rounded-2xl w-full"
+      style={{ backgroundColor: 'rgba(29,106,245,0.08)' }}
       role="group"
       aria-label="Filter periode"
     >
-      {PERIOD_OPTIONS.map(option => (
-        <button
-          key={option.key}
-          onClick={() => onChange(option.key)}
-          className={`
-            px-2.5 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all duration-200
-            ${value === option.key
-              ? 'bg-[#1d6af5] text-white shadow-sm'
-              : 'text-gray-500 dark:text-gray-400 hover:text-[#1d6af5] dark:hover:text-[#60a5fa]'
-            }
-          `}
-          aria-pressed={value === option.key}
-        >
-          {option.label}
-        </button>
-      ))}
+      {PERIOD_OPTIONS.map(option => {
+        const active = value === option.key
+        return (
+          <button
+            key={option.key}
+            onClick={() => onChange(option.key)}
+            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 whitespace-nowrap"
+            style={active ? {
+              backgroundColor: '#1d6af5',
+              color: '#ffffff',
+              boxShadow: '0 2px 8px rgba(29,106,245,0.4)',
+            } : {
+              color: '#6b7280',
+              backgroundColor: 'transparent',
+            }}
+            aria-pressed={active}
+          >
+            {option.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
