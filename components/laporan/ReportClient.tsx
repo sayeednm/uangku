@@ -82,8 +82,12 @@ function CategoryBreakdownSection({ title, data }: { title: string; data: Catego
               </div>
               <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gray-400 dark:bg-gray-500 rounded-full transition-all"
-                  style={{ width: `${row.percentage}%` }}
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${row.percentage}%`,
+                    background: 'linear-gradient(90deg, #1d6af5, #3b82f6)',
+                    boxShadow: '0 0 6px rgba(29,106,245,0.4)',
+                  }}
                 />
               </div>
             </div>

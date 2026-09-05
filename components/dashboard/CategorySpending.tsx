@@ -7,6 +7,33 @@ interface CategorySpendingProps {
   periodLabel: string
 }
 
+// Default colors per category name jika tidak ada color dari DB
+const CATEGORY_COLORS: Record<string, string> = {
+  'Makanan':       '#ef4444',
+  'Transportasi':  '#3b82f6',
+  'Belanja':       '#8b5cf6',
+  'Tagihan':       '#f59e0b',
+  'Rumah':         '#10b981',
+  'Kesehatan':     '#ec4899',
+  'Hiburan':       '#6366f1',
+  'Pendidikan':    '#14b8a6',
+  'Pakaian':       '#f97316',
+  'Keluarga':      '#a855f7',
+  'Gaji':          '#10b981',
+  'Freelance':     '#3b82f6',
+  'Bonus':         '#f59e0b',
+  'Investasi':     '#8b5cf6',
+  'Hadiah':        '#ec4899',
+  'Lainnya':       '#6b7280',
+}
+
+function getBarColor(row: CategorySpendingRow): string {
+  // Pakai warna dari DB jika ada
+  if (row.category_color) return row.category_color
+  // Fallback ke mapping nama
+  return CATEGORY_COLORS[row.category_name] ?? '#1d6af5'
+}
+
 export default function CategorySpending({ data, periodLabel }: CategorySpendingProps) {
   const total = data.reduce((sum, row) => sum + row.total, 0)
 
@@ -31,6 +58,8 @@ export default function CategorySpending({ data, periodLabel }: CategorySpending
         <div className="bg-white dark:bg-white/[0.03] border border-gray-200/60 dark:border-white/[0.07] rounded-2xl px-4 py-4 space-y-4">
           {data.map(row => {
             const pct = total > 0 ? Math.round((row.total / total) * 100) : 0
+            const barColor = getBarColor(row)
+
             return (
               <div key={row.category_id}>
                 <div className="flex items-center justify-between mb-1.5">
@@ -47,11 +76,14 @@ export default function CategorySpending({ data, periodLabel }: CategorySpending
                     </span>
                   </div>
                 </div>
-                {/* Progress bar */}
-                <div className="h-1 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                <div className="h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gray-800 dark:bg-gray-300 rounded-full transition-all duration-500"
-                    style={{ width: `${pct}%` }}
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${pct}%`,
+                      background: 'linear-gradient(90deg, #1d6af5, #3b82f6)',
+                      boxShadow: '0 0 6px rgba(29,106,245,0.4)',
+                    }}
                   />
                 </div>
               </div>
