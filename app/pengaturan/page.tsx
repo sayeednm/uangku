@@ -54,7 +54,7 @@ export default async function PengaturanPage() {
               <form action="/auth/logout" method="post">
                 <button
                   type="submit"
-                  className="text-sm font-medium text-danger-600 hover:text-danger-700 transition-colors"
+                  className="text-sm font-medium text-red-500 hover:text-red-600 transition-colors"
                 >
                   Keluar dari Akun
                 </button>

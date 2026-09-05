@@ -142,10 +142,9 @@ export default function LoginForm() {
         )}
       </button>
 
-      {/* Register link */}
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-gray-500 dark:text-gray-400">
         Belum punya akun?{' '}
-        <Link href="/register" className="font-medium text-primary-600 hover:text-primary-700">
+        <Link href="/register" className="font-semibold text-[#1d6af5] hover:text-[#1558d6] transition-colors">
           Daftar sekarang
         </Link>
       </p>

@@ -49,7 +49,7 @@ function CategoryItem({ category }: { category: CategoryRow }) {
           <button
             onClick={() => setShowConfirm(true)}
             disabled={isPending}
-            className="p-1.5 rounded text-gray-400 hover:text-danger-600 hover:bg-danger-50 transition-colors"
+            className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
             aria-label="Arsipkan kategori"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -72,7 +72,7 @@ function CategoryItem({ category }: { category: CategoryRow }) {
               Batal
             </button>
           </div>
-          {actionError && <p className="text-xs text-danger-600 mt-1">{actionError}</p>}
+          {actionError && <p className="text-xs text-red-500 mt-1">{actionError}</p>}
         </div>
       )}
     </div>
