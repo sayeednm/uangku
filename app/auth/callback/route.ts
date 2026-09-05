@@ -14,8 +14,11 @@ export async function GET(request: NextRequest) {
     if (!error) {
       // next param controls where to go after auth
       // For password reset: next=/update-password
-      // For normal auth: next=/dashboard
-      return NextResponse.redirect(`${requestUrl.origin}${next}`)
+      // For email verification: next=/dashboard (with welcome)
+      const destination = next === '/dashboard'
+        ? `${requestUrl.origin}/dashboard?success=Akun+berhasil+diverifikasi`
+        : `${requestUrl.origin}${next}`
+      return NextResponse.redirect(destination)
     }
 
     // Auth failed — redirect to login with error
