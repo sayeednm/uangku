@@ -34,7 +34,7 @@ export default function LegalPage() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">2. Deskripsi Layanan</h3>
-                <p>Uangku adalah aplikasi manajemen keuangan pribadi yang membantu pengguna mencatat, melacak, dan menganalisis keuangan mereka. Layanan ini disediakan "sebagaimana adanya" tanpa jaminan apapun.</p>
+                <p>Uangku adalah aplikasi manajemen keuangan pribadi yang membantu pengguna mencatat, melacak, dan menganalisis keuangan mereka. Layanan ini disediakan sebagaimana adanya tanpa jaminan apapun.</p>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-1">3. Akun Pengguna</h3>
