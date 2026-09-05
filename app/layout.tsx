@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Uangku",
-    startupImage: "/logo.png",
+    startupImage: "/apple-touch-icon.png",
   },
   formatDetection: {
     telephone: false,
@@ -43,10 +43,10 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <head>
         {/* iOS PWA */}
-        <link rel="apple-touch-icon" href="/logo.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/logo.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
-        <link rel="apple-touch-icon" sizes="167x167" href="/logo.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="167x167" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Uangku" />
