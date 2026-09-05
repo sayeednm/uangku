@@ -3,16 +3,46 @@
   "short_name": "Uangku",
   "description": "Aplikasi manajemen keuangan pribadi",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#F7F8FA",
-  "theme_color": "#111827",
-  "orientation": "portrait",
+  "background_color": "#F0F4FF",
+  "theme_color": "#1d6af5",
+  "orientation": "portrait-primary",
+  "lang": "id",
+  "categories": ["finance", "productivity"],
   "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Uangku Dashboard"
     }
   ]
 }
