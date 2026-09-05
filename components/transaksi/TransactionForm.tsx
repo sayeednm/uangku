@@ -123,6 +123,12 @@ export default function TransactionForm({
           required
           options={categories.map(c => ({ value: c.id, label: c.name, icon: c.icon }))}
         />
+        {categories.length === 0 && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+            Belum ada kategori.{' '}
+            <a href="/kategori/baru" className="font-semibold underline">Tambah kategori</a>
+          </p>
+        )}
       </div>
 
       {/* Account */}

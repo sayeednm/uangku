@@ -38,6 +38,18 @@ export default function RecentTransactions({ transactions }: RecentTransactionsP
           {transactions.map(tx => (
             <TransactionRow key={tx.id} transaction={tx} />
           ))}
+          {/* Mobile-friendly "Lihat Semua" button */}
+          <div className="py-3 text-center">
+            <a
+              href="/transaksi"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1d6af5] hover:opacity-80 transition-opacity"
+            >
+              Lihat semua transaksi
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          </div>
         </div>
       )}
     </section>

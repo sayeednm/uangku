@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
     password,
     options: {
       emailRedirectTo: `${request.nextUrl.origin}/auth/callback`,
+      data: {
+        app_name: 'Uangku',
+      },
     },
   })
 

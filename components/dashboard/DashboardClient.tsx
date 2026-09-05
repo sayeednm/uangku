@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getPeriodRange, getCurrentMonthLabel, type PeriodKey } from '@/lib/utils/date'
 import PeriodSelector from './PeriodSelector'
@@ -11,91 +11,59 @@ import CategorySpending from './CategorySpending'
 import DashboardSkeleton from './DashboardSkeleton'
 import DashboardError from './DashboardError'
 import OnboardingEmpty from './OnboardingEmpty'
+import OnboardingTour from './OnboardingTour'
 import type { DashboardData } from '@/lib/dashboard/queries'
 
-// Period selector and refetch live on the client.
-// Initial data is passed from the server component as a prop to avoid
-// a loading flash on first render.
 interface DashboardClientProps {
   initialData: DashboardData
   initialPeriod: PeriodKey
 }
 
-export default function DashboardClient({
-  initialData,
-  initialPeriod,
-}: DashboardClientProps) {
+export default function DashboardClient({ initialData, initialPeriod }: DashboardClientProps) {
   const [period, setPeriod] = useState<PeriodKey>(initialPeriod)
   const [data, setData] = useState<DashboardData>(initialData)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
+  const mounted = useRef(false)
+  const realtimeReady = useRef(false)
 
-  // On period change, re-fetch only the period-sensitive parts
-  // (periodSummary + categorySpending). Accounts and recentTransactions
-  // are not period-filtered so we keep the initial values.
+  // Fetch only period-sensitive data on period change
   const fetchPeriodData = useCallback(async (p: PeriodKey) => {
     setLoading(true)
     setError(false)
-
     try {
       const supabase = createClient()
       const { start, end } = getPeriodRange(p)
 
-      // Fetch income/expense totals for the period
-      const { data: txData, error: txError } = await supabase
-        .from('transactions')
-        .select('type, amount')
-        .gte('transaction_date', start)
-        .lte('transaction_date', end)
+      const [txRes, catRes] = await Promise.all([
+        supabase.from('transactions').select('type, amount')
+          .gte('transaction_date', start).lte('transaction_date', end),
+        supabase.from('transactions').select('amount, category:categories(id,name,icon,color)')
+          .eq('type', 'expense').gte('transaction_date', start).lte('transaction_date', end),
+      ])
 
-      if (txError) throw txError
+      if (txRes.error) throw txRes.error
 
-      let income = 0
-      let expense = 0
-      for (const row of txData ?? []) {
-        if (row.type === 'income') income += row.amount
-        else if (row.type === 'expense') expense += row.amount
+      let income = 0, expense = 0
+      for (const r of txRes.data ?? []) {
+        if (r.type === 'income') income += r.amount
+        else expense += r.amount
       }
 
-      // Fetch expense by category for the period
-      const { data: catData, error: catError } = await supabase
-        .from('transactions')
-        .select('amount, category:categories ( id, name, icon, color )')
-        .eq('type', 'expense')
-        .gte('transaction_date', start)
-        .lte('transaction_date', end)
-
-      if (catError) throw catError
-
-      // Aggregate by category
       type CatShape = { id: string; name: string; icon: string | null; color: string | null }
       const catMap = new Map<string, { category_id: string; category_name: string; category_icon: string | null; category_color: string | null; total: number }>()
-
-      for (const row of catData ?? []) {
+      for (const row of catRes.data ?? []) {
         const cat = row.category as unknown as CatShape | null
         if (!cat) continue
-        const existing = catMap.get(cat.id)
-        if (existing) {
-          existing.total += row.amount
-        } else {
-          catMap.set(cat.id, {
-            category_id:    cat.id,
-            category_name:  cat.name,
-            category_icon:  cat.icon,
-            category_color: cat.color,
-            total:          row.amount,
-          })
-        }
+        const ex = catMap.get(cat.id)
+        if (ex) ex.total += row.amount
+        else catMap.set(cat.id, { category_id: cat.id, category_name: cat.name, category_icon: cat.icon, category_color: cat.color, total: row.amount })
       }
-
-      const categorySpending = Array.from(catMap.values())
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 6)
 
       setData(prev => ({
         ...prev,
-        periodSummary:    { income, expense },
-        categorySpending,
+        periodSummary: { income, expense },
+        categorySpending: Array.from(catMap.values()).sort((a, b) => b.total - a.total).slice(0, 6),
       }))
     } catch {
       setError(true)
@@ -104,80 +72,92 @@ export default function DashboardClient({
     }
   }, [])
 
-  // Refetch whenever period changes (skip on first render — initialData already correct)
-  const [isFirstRender, setIsFirstRender] = useState(true)
+  // Period change — skip on mount (initialData already has correct period data)
   useEffect(() => {
-    if (isFirstRender) {
-      setIsFirstRender(false)
-      return
-    }
+    if (!mounted.current) { mounted.current = true; return }
     fetchPeriodData(period)
-  }, [period, fetchPeriodData, isFirstRender])
+  }, [period, fetchPeriodData])
 
-  // ── Realtime: refresh accounts + recent transactions on any change ──────────
+  // Realtime — only refresh after a short delay to avoid double-load on navigation
   useEffect(() => {
     const supabase = createClient()
 
-    const channel = supabase
-      .channel('dashboard-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' },
-        async () => {
-          // Re-fetch accounts (balance changes) + recent transactions
-          try {
-            const [accRes, txRes] = await Promise.all([
-              supabase
-                .from('accounts')
-                .select('*')
-                .eq('is_archived', false)
-                .order('created_at', { ascending: true }),
-              supabase
-                .from('transactions')
-                .select('*, category:categories(id,name,icon,color,type), account:accounts(id,name,type)')
-                .order('transaction_date', { ascending: false })
-                .order('created_at', { ascending: false })
-                .limit(10),
-            ])
+    // Delay realtime subscription so it doesn't fire immediately on mount
+    const setupTimer = setTimeout(() => {
+      realtimeReady.current = true
 
-            if (accRes.data && txRes.data) {
-              // Recalculate balances
+      const channel = supabase
+        .channel('dashboard-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' },
+          async () => {
+            if (!realtimeReady.current) return
+            try {
+              const { start, end } = getPeriodRange(period)
+              const supabase2 = createClient()
+              const [accRes, recentRes, periodRes] = await Promise.all([
+                supabase2.from('accounts').select('*').eq('is_archived', false).order('created_at', { ascending: true }),
+                supabase2.from('transactions').select('*, category:categories(id,name,icon,color,type), account:accounts(id,name,type)').order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).limit(10),
+                supabase2.from('transactions').select('type, amount').gte('transaction_date', start).lte('transaction_date', end),
+              ])
+
+              if (!accRes.data) return
+
               const ids = accRes.data.map(a => a.id)
-              const [incRes, expRes] = await Promise.all([
-                supabase.from('transactions').select('account_id, amount').in('account_id', ids).eq('type', 'income'),
-                supabase.from('transactions').select('account_id, amount').in('account_id', ids).eq('type', 'expense'),
+              const [txRes, tfOutRes, tfInRes] = await Promise.all([
+                supabase2.from('transactions').select('account_id, type, amount').in('account_id', ids),
+                supabase2.from('transfers').select('from_account_id, amount').in('from_account_id', ids),
+                supabase2.from('transfers').select('to_account_id, amount').in('to_account_id', ids),
               ])
 
               const incMap = new Map<string, number>()
               const expMap = new Map<string, number>()
-              for (const r of incRes.data ?? []) incMap.set(r.account_id, (incMap.get(r.account_id) ?? 0) + r.amount)
-              for (const r of expRes.data ?? []) expMap.set(r.account_id, (expMap.get(r.account_id) ?? 0) + r.amount)
+              const tfInMap = new Map<string, number>()
+              const tfOutMap = new Map<string, number>()
 
-              const accountsWithBalance = accRes.data.map(a => ({
+              for (const t of txRes.data ?? []) {
+                if (t.type === 'income') incMap.set(t.account_id, (incMap.get(t.account_id) ?? 0) + t.amount)
+                else expMap.set(t.account_id, (expMap.get(t.account_id) ?? 0) + t.amount)
+              }
+              for (const t of tfInRes.data ?? []) tfInMap.set(t.to_account_id, (tfInMap.get(t.to_account_id) ?? 0) + t.amount)
+              for (const t of tfOutRes.data ?? []) tfOutMap.set(t.from_account_id, (tfOutMap.get(t.from_account_id) ?? 0) + t.amount)
+
+              const accounts = accRes.data.map(a => ({
                 ...a,
-                current_balance: a.initial_balance + (incMap.get(a.id) ?? 0) - (expMap.get(a.id) ?? 0),
+                current_balance: a.initial_balance + (incMap.get(a.id) ?? 0) - (expMap.get(a.id) ?? 0) + (tfInMap.get(a.id) ?? 0) - (tfOutMap.get(a.id) ?? 0),
               }))
-              const totalBalance = accountsWithBalance.reduce((s, a) => s + a.current_balance, 0)
+
+              let pIncome = 0, pExpense = 0
+              for (const r of periodRes.data ?? []) {
+                if (r.type === 'income') pIncome += r.amount
+                else pExpense += r.amount
+              }
 
               setData(prev => ({
                 ...prev,
-                accounts: accountsWithBalance,
-                totalBalance,
-                recentTransactions: txRes.data as typeof prev.recentTransactions,
+                accounts,
+                totalBalance: accounts.reduce((s, a) => s + a.current_balance, 0),
+                recentTransactions: (recentRes.data ?? []) as typeof prev.recentTransactions,
+                periodSummary: { income: pIncome, expense: pExpense },
               }))
-            }
-          } catch { /* silent — data already shown */ }
-        }
-      )
-      .subscribe()
+            } catch { /* silent */ }
+          }
+        )
+        .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+      return () => { supabase.removeChannel(channel) }
+    }, 1500) // Wait 1.5s before setting up realtime — avoids double fetch on navigation
+
+    return () => {
+      clearTimeout(setupTimer)
+      realtimeReady.current = false
+    }
+  }, [period]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const periodLabel = getPeriodRange(period).label
   const monthLabel = getCurrentMonthLabel()
 
   return (
     <div className="space-y-10">
-      {/* Header */}
       <div className="animate-fade-up mb-4">
         <p className="text-xs text-gray-400 dark:text-gray-500 font-medium tracking-wide">
           Selamat datang kembali 👋
@@ -186,13 +166,11 @@ export default function DashboardClient({
           Ringkasan
         </h1>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{monthLabel}</p>
-        {/* Period selector — full width row, tidak terpotong */}
         <div className="mt-3">
           <PeriodSelector value={period} onChange={setPeriod} />
         </div>
       </div>
 
-      {/* Balance summary */}
       {loading ? (
         <DashboardSkeleton />
       ) : error ? (
@@ -201,17 +179,11 @@ export default function DashboardClient({
         <OnboardingEmpty />
       ) : (
         <>
-          <BalanceSummary
-            totalBalance={data.totalBalance}
-            periodSummary={data.periodSummary}
-            periodLabel={periodLabel}
-          />
-
+          <BalanceSummary totalBalance={data.totalBalance} periodSummary={data.periodSummary} periodLabel={periodLabel} />
           <RecentTransactions transactions={data.recentTransactions} />
-
           <AccountsOverview accounts={data.accounts} />
-
           <CategorySpending data={data.categorySpending} periodLabel={periodLabel} />
+          <OnboardingTour />
         </>
       )}
     </div>

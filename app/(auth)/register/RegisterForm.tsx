@@ -151,6 +151,18 @@ export default function RegisterForm() {
         ) : 'Daftar'}
       </button>
 
+      <p className="text-center text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
+        Dengan mendaftar, Anda menyetujui{' '}
+        <Link href="/legal" className="text-[#1d6af5] hover:opacity-80 transition-opacity">
+          Syarat & Ketentuan
+        </Link>{' '}
+        dan{' '}
+        <Link href="/legal" className="text-[#1d6af5] hover:opacity-80 transition-opacity">
+          Kebijakan Privasi
+        </Link>{' '}
+        kami.
+      </p>
+
       <p className="text-center text-sm text-gray-500 dark:text-gray-400">
         Sudah punya akun?{' '}
         <Link href="/login" className="font-semibold text-[#1d6af5] hover:text-[#1558d6] transition-colors">
