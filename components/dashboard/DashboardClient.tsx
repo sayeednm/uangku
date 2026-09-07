@@ -12,6 +12,7 @@ import DashboardSkeleton from './DashboardSkeleton'
 import DashboardError from './DashboardError'
 import OnboardingEmpty from './OnboardingEmpty'
 import OnboardingTour from './OnboardingTour'
+import { Suspense } from 'react'
 import type { DashboardData } from '@/lib/dashboard/queries'
 
 interface DashboardClientProps {
@@ -183,7 +184,7 @@ export default function DashboardClient({ initialData, initialPeriod }: Dashboar
           <RecentTransactions transactions={data.recentTransactions} />
           <AccountsOverview accounts={data.accounts} />
           <CategorySpending data={data.categorySpending} periodLabel={periodLabel} />
-          <OnboardingTour />
+          <Suspense fallback={null}><OnboardingTour /></Suspense>
         </>
       )}
     </div>
