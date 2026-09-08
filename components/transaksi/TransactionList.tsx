@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import TransactionItem from './TransactionItem'
 import type { TransactionWithRefs } from '@/lib/transaksi/queries'

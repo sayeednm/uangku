@@ -64,7 +64,7 @@ function CategoryItem({ category }: { category: CategoryRow }) {
           <p className="text-xs text-gray-700 dark:text-gray-300 font-medium mb-2">Arsipkan kategori ini?</p>
           <div className="flex gap-2">
             <button onClick={handleArchive} disabled={isPending}
-              className="text-xs font-medium px-3 py-1.5 bg-danger-600 text-white rounded-lg hover:bg-danger-700 disabled:opacity-50">
+              className="text-xs font-medium px-3 py-1.5 bg-[#1d6af5] text-white rounded-lg hover:bg-[#1558d6] disabled:opacity-50">
               Arsipkan
             </button>
             <button onClick={() => setShowConfirm(false)} disabled={isPending}
