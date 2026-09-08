@@ -43,6 +43,7 @@ export default function TransactionForm({
   const [selectedCategory, setSelectedCategory] = useState(transaction?.category_id ?? '')
   const [selectedAccount, setSelectedAccount] = useState(transaction?.account_id ?? (accounts[0]?.id ?? ''))
   const [selectedDate, setSelectedDate] = useState(transaction?.transaction_date ?? today())
+  const [amountValue, setAmountValue] = useState(transaction ? String(transaction.amount) : '')
 
   const handleTypeChange = (newType: 'income' | 'expense') => {
     setType(newType)
@@ -98,24 +99,27 @@ export default function TransactionForm({
         <input type="hidden" name="type" value={type} />
       </div>
 
-      {/* Amount — numpad on mobile, currency input on desktop */}
+      {/* Amount — single hidden input controlled by state */}
+      <input type="hidden" name="amount" value={amountValue || '0'} />
       <div>
-        <label htmlFor="amount" className="label lg:block hidden">Nominal</label>
         {/* Desktop */}
         <div className="hidden lg:block">
+          <label className="label">Nominal</label>
           <CurrencyInput
-            id="amount"
-            name="amount"
+            id="amount-display"
+            name="_amount_display"
             defaultValue={transaction?.amount}
             disabled={isPending}
             autoFocus={!isEdit}
+            onChange={val => setAmountValue(String(val))}
           />
         </div>
         {/* Mobile — calculator style */}
         <div className="lg:hidden">
           <NumpadInput
-            name="amount"
+            name="_amount_numpad"
             defaultValue={transaction?.amount}
+            onChange={val => setAmountValue(String(val))}
           />
         </div>
       </div>
