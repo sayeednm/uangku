@@ -55,8 +55,10 @@ export default function TransactionList({ transactions, total, page, pageSize }:
               {formatDate(date)}
             </p>
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {txs.map(tx => (
-                <TransactionItem key={tx.id} transaction={tx} />
+              {txs.map((tx, i) => (
+                <div key={tx.id} className="animate-fade-up" style={{ animationDelay: `${i * 35}ms` }}>
+                  <TransactionItem transaction={tx} />
+                </div>
               ))}
             </div>
           </div>

@@ -2,8 +2,8 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatCurrency } from '@/lib/utils/currency'
 import CurrencyInput from '@/components/ui/CurrencyInput'
+import NumpadInput from '@/components/ui/NumpadInput'
 import CustomSelect from '@/components/ui/CustomSelect'
 import type { TransactionWithRefs } from '@/lib/transaksi/queries'
 import type { AccountRow } from '@/lib/rekening/queries'
@@ -98,16 +98,26 @@ export default function TransactionForm({
         <input type="hidden" name="type" value={type} />
       </div>
 
-      {/* Amount */}
+      {/* Amount — numpad on mobile, currency input on desktop */}
       <div>
-        <label htmlFor="amount" className="label">Nominal</label>
-        <CurrencyInput
-          id="amount"
-          name="amount"
-          defaultValue={transaction?.amount}
-          disabled={isPending}
-          autoFocus={!isEdit}
-        />
+        <label htmlFor="amount" className="label lg:block hidden">Nominal</label>
+        {/* Desktop */}
+        <div className="hidden lg:block">
+          <CurrencyInput
+            id="amount"
+            name="amount"
+            defaultValue={transaction?.amount}
+            disabled={isPending}
+            autoFocus={!isEdit}
+          />
+        </div>
+        {/* Mobile — calculator style */}
+        <div className="lg:hidden">
+          <NumpadInput
+            name="amount"
+            defaultValue={transaction?.amount}
+          />
+        </div>
       </div>
 
       {/* Category */}

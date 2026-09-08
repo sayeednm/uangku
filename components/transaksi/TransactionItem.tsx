@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react'
 import { formatCurrency } from '@/lib/utils/currency'
 import { formatDate } from '@/lib/utils/date'
 import { deleteTransactionAction } from '@/lib/transaksi/actions'
+import SwipeToDelete from '@/components/ui/SwipeToDelete'
 import ConfirmSheet from '@/components/ui/ConfirmSheet'
 import { useUndoToast } from '@/components/ui/UndoToast'
 import type { TransactionWithRefs } from '@/lib/transaksi/queries'
@@ -53,7 +54,8 @@ export default function TransactionItem({ transaction: tx }: TransactionItemProp
 
   return (
     <>
-      <div className={`flex items-center gap-3 py-3.5 group transition-opacity ${isPending ? 'opacity-40' : ''}`}>
+      <SwipeToDelete onDelete={() => setShowConfirm(true)} disabled={isPending}>
+        <div className={`flex items-center gap-3 py-3.5 group transition-opacity ${isPending ? 'opacity-40' : ''}`}>
         {/* Icon */}
         <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center text-lg flex-shrink-0 transition-transform duration-200 group-hover:scale-105">
           {categoryIcon}
@@ -91,7 +93,8 @@ export default function TransactionItem({ transaction: tx }: TransactionItemProp
             </svg>
           </button>
         </div>
-      </div>
+        </div>
+      </SwipeToDelete>
 
       {UndoToastComponent}
 
