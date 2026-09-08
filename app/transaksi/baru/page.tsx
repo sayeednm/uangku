@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import BackButton from '@/components/ui/BackButton'
 import { getAccounts } from '@/lib/rekening/queries'
 import { getCategoriesByType } from '@/lib/kategori/queries'
 import { createTransactionAction } from '@/lib/transaksi/actions'
@@ -43,12 +44,10 @@ export default async function TransaksiBaruPage({ searchParams }: PageProps) {
   return (
     <AppLayout userEmail={user.email ?? ''}>
       <div className="max-w-lg">
-        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
-          <Link href="/transaksi" className="hover:text-gray-700 dark:hover:text-gray-200">Transaksi</Link>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-white">Tambah</span>
+        <div className="flex items-center gap-3 mb-6">
+          <BackButton href="/transaksi" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tambah Transaksi</h1>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Tambah Transaksi</h1>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
           <TransactionForm
             accounts={accounts.map(a => ({ id: a.id, name: a.name, type: a.type }))}
