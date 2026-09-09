@@ -22,6 +22,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gambar tidak ditemukan' }, { status: 400 })
     }
 
+    // Validate file
+    if (file.size === 0) {
+      return NextResponse.json({ error: 'File kosong' }, { status: 400 })
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Foto terlalu besar (max 10MB)' }, { status: 400 })
+    }
+
+    console.log('[scan-receipt] file:', file.name, file.size, file.type)
+
     // Convert file to base64
     const bytes = await file.arrayBuffer()
     const base64 = Buffer.from(bytes).toString('base64')
@@ -58,6 +68,7 @@ Fokus pada nominal TOTAL yang harus dibayar (bukan subtotal atau pajak terpisah)
     ])
 
     const responseText = result.response.text().trim()
+    console.log('[scan-receipt] Gemini response:', responseText.substring(0, 200))
 
     // Parse JSON response
     let parsed
