@@ -49,7 +49,6 @@ export default async function EditTransaksiPage({ params }: PageProps) {
             />
           </Suspense>
         </div>
-        </div>
       </div>
     </AppLayout>
   )
