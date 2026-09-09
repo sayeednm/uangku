@@ -1,4 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getTransactionById } from '@/lib/transaksi/queries'
 import { updateTransactionAction } from '@/lib/transaksi/actions'
@@ -38,13 +39,16 @@ export default async function EditTransaksiPage({ params }: PageProps) {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Edit Transaksi</h1>
         </div>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
-          <TransactionForm
-            transaction={transaction}
-            accounts={accounts.map(a => ({ id: a.id, name: a.name, type: a.type }))}
-            incomeCategories={incomeCategories.map(c => ({ id: c.id, name: c.name, icon: c.icon }))}
-            expenseCategories={expenseCategories.map(c => ({ id: c.id, name: c.name, icon: c.icon }))}
-            action={boundAction}
-          />
+          <Suspense fallback={null}>
+            <TransactionForm
+              transaction={transaction}
+              accounts={accounts.map(a => ({ id: a.id, name: a.name, type: a.type }))}
+              incomeCategories={incomeCategories.map(c => ({ id: c.id, name: c.name, icon: c.icon }))}
+              expenseCategories={expenseCategories.map(c => ({ id: c.id, name: c.name, icon: c.icon }))}
+              action={boundAction}
+            />
+          </Suspense>
+        </div>
         </div>
       </div>
     </AppLayout>

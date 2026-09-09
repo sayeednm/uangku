@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import BackButton from '@/components/ui/BackButton'
 import { getAccounts } from '@/lib/rekening/queries'
@@ -9,7 +10,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import TransactionForm from '@/components/transaksi/TransactionForm'
 
 interface PageProps {
-  searchParams: Promise<{ type?: string }>
+  searchParams: Promise<{ type?: string; scan?: string }>
 }
 
 export default async function TransaksiBaruPage({ searchParams }: PageProps) {
@@ -49,13 +50,15 @@ export default async function TransaksiBaruPage({ searchParams }: PageProps) {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tambah Transaksi</h1>
         </div>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
-          <TransactionForm
-            accounts={accounts.map(a => ({ id: a.id, name: a.name, type: a.type }))}
-            incomeCategories={incomeCategories.map(c => ({ id: c.id, name: c.name, icon: c.icon }))}
-            expenseCategories={expenseCategories.map(c => ({ id: c.id, name: c.name, icon: c.icon }))}
-            action={createTransactionAction}
-            defaultType={defaultType}
-          />
+          <Suspense fallback={null}>
+            <TransactionForm
+              accounts={accounts.map(a => ({ id: a.id, name: a.name, type: a.type }))}
+              incomeCategories={incomeCategories.map(c => ({ id: c.id, name: c.name, icon: c.icon }))}
+              expenseCategories={expenseCategories.map(c => ({ id: c.id, name: c.name, icon: c.icon }))}
+              action={createTransactionAction}
+              defaultType={defaultType}
+            />
+          </Suspense>
         </div>
       </div>
     </AppLayout>

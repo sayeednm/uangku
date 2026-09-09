@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import NumpadInput from '@/components/ui/NumpadInput'
@@ -37,6 +37,7 @@ export default function TransactionForm({
   defaultType = 'expense',
 }: TransactionFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const formRef = useRef<HTMLFormElement>(null)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -52,8 +53,7 @@ export default function TransactionForm({
   const [selectedDate, setSelectedDate] = useState(transaction?.transaction_date ?? today())
   const [amountValue, setAmountValue] = useState(transaction ? String(transaction.amount) : '')
 
-  // Refresh categories from Supabase client on mount + type change
-  // This ensures custom categories created in another tab are visible
+  // Refresh categories from Supabase client on mount
   useEffect(() => {
     const supabase = createClient()
     supabase
@@ -68,6 +68,33 @@ export default function TransactionForm({
         setExpenseCategories(data.filter(c => c.type === 'expense'))
       })
   }, [])
+
+  // Auto-fill from scan result in URL params
+  useEffect(() => {
+    if (!searchParams.get('scan')) return
+    const amount = searchParams.get('amount')
+    const desc = searchParams.get('desc')
+    const date = searchParams.get('date')
+    const category = searchParams.get('category')
+
+    if (amount && parseInt(amount) > 0) setAmountValue(amount)
+    if (date) setSelectedDate(date)
+    if (desc) {
+      setTimeout(() => {
+        const descInput = formRef.current?.elements.namedItem('description') as HTMLInputElement | null
+        if (descInput) descInput.value = desc
+      }, 100)
+    }
+    if (category) {
+      // Will be matched after categories load
+      const tryMatch = (cats: typeof incomeCategories, type: 'income' | 'expense') => {
+        const match = cats.find(c => c.name.toLowerCase() === category.toLowerCase())
+        if (match) { setSelectedCategory(match.id); setType(type) }
+      }
+      tryMatch(expenseCategories, 'expense')
+      tryMatch(incomeCategories, 'income')
+    }
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const categories = type === 'income' ? incomeCategories : expenseCategories
 
