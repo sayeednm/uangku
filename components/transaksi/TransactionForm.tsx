@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import NumpadInput from '@/components/ui/NumpadInput'
 import CustomSelect from '@/components/ui/CustomSelect'
+import ScanReceiptButton from './ScanReceiptButton'
 import type { TransactionWithRefs } from '@/lib/transaksi/queries'
 import type { AccountRow } from '@/lib/rekening/queries'
 import type { CategoryRow } from '@/lib/kategori/queries'
@@ -75,6 +76,35 @@ export default function TransactionForm({
     if (!isEdit) setSelectedCategory('')
   }
 
+  // Handle scan result — auto-fill all fields
+  const handleScanResult = (result: {
+    amount: number
+    description: string
+    date: string | null
+    category: string
+    confidence: number
+  }) => {
+    if (result.amount > 0) setAmountValue(String(result.amount))
+    if (result.description) {
+      const descInput = formRef.current?.elements.namedItem('description') as HTMLInputElement | null
+      if (descInput) descInput.value = result.description
+    }
+    if (result.date) setSelectedDate(result.date)
+    // Match category name to category id
+    if (result.category) {
+      const allCats = [...incomeCategories, ...expenseCategories]
+      const match = allCats.find(c =>
+        c.name.toLowerCase() === result.category.toLowerCase()
+      )
+      if (match) {
+        setSelectedCategory(match.id)
+        // Auto-set type based on matched category
+        const catType = incomeCategories.find(c => c.id === match.id) ? 'income' : 'expense'
+        setType(catType)
+      }
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
@@ -89,6 +119,11 @@ export default function TransactionForm({
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
+      {/* Scan receipt — only on create */}
+      {!isEdit && (
+        <ScanReceiptButton onResult={handleScanResult} />
+      )}
+
       {error && (
         <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
           {error}
