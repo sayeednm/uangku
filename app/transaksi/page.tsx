@@ -8,24 +8,10 @@ import ExportButton from '@/components/transaksi/ExportButton'
 import TransaksiContent from './TransaksiContent'
 import PageSkeleton from '@/components/ui/PageSkeleton'
 
-interface PageProps {
-  searchParams: Promise<{
-    type?: string
-    account_id?: string
-    category_id?: string
-    date_from?: string
-    date_to?: string
-    search?: string
-    page?: string
-  }>
-}
-
-export default async function TransaksiPage({ searchParams }: PageProps) {
+export default async function TransaksiPage() {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) redirect('/login')
-
-  const params = await searchParams
 
   return (
     <AppLayout userEmail={user.email ?? ''}>
@@ -47,9 +33,9 @@ export default async function TransaksiPage({ searchParams }: PageProps) {
 
         <Suspense fallback={null}><ActionFeedback /></Suspense>
 
-        {/* Stream data content */}
+        {/* Fetch all once, filter client-side = instant response */}
         <Suspense fallback={<PageSkeleton />}>
-          <TransaksiContent searchParams={params} />
+          <TransaksiContent />
         </Suspense>
       </div>
     </AppLayout>
