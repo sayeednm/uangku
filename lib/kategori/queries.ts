@@ -35,15 +35,21 @@ export async function getCategories(): Promise<CategoryRow[]> {
 export async function getCategoriesByType(type: CategoryType): Promise<CategoryRow[]> {
   const supabase = await createClient()
 
+  // Fetch default categories + user's own custom categories for this type
+  // RLS handles filtering: is_default=true OR user_id=auth.uid()
   const { data, error } = await supabase
     .from('categories')
     .select('*')
     .eq('type', type)
     .eq('is_archived', false)
-    .order('is_default', { ascending: false })
+    .order('is_default', { ascending: false }) // defaults first
     .order('name', { ascending: true })
 
-  if (error) throw error
+  if (error) {
+    console.error('[getCategoriesByType] error:', error.message)
+    throw error
+  }
+
   return data ?? []
 }
 

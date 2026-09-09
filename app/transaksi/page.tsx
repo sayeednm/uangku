@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import AppLayout from '@/components/layout/AppLayout'
 import ActionFeedback from '@/components/ui/ActionFeedback'
+import ExportButton from '@/components/transaksi/ExportButton'
 import TransaksiContent from './TransaksiContent'
 import PageSkeleton from '@/components/ui/PageSkeleton'
 
@@ -36,9 +37,12 @@ export default async function TransaksiPage({ searchParams }: PageProps) {
               Semua pemasukan dan pengeluaran
             </p>
           </div>
-          <Link href="/transaksi/baru" className="btn-primary text-sm flex-shrink-0">
-            + Tambah
-          </Link>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Suspense fallback={null}><ExportButton /></Suspense>
+            <Link href="/transaksi/baru" className="btn-primary text-sm">
+              + Tambah
+            </Link>
+          </div>
         </div>
 
         <Suspense fallback={null}><ActionFeedback /></Suspense>

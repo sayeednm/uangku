@@ -1,7 +1,8 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useRef, useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import NumpadInput from '@/components/ui/NumpadInput'
 import CustomSelect from '@/components/ui/CustomSelect'
@@ -18,13 +19,19 @@ interface TransactionFormProps {
   defaultType?: 'income' | 'expense'
 }
 
-const today = () => new Date().toISOString().split('T')[0]
+const today = () => {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 export default function TransactionForm({
   transaction,
   accounts,
-  incomeCategories,
-  expenseCategories,
+  incomeCategories: initialIncomeCategories,
+  expenseCategories: initialExpenseCategories,
   action,
   defaultType = 'expense',
 }: TransactionFormProps) {
@@ -33,25 +40,39 @@ export default function TransactionForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [type, setType] = useState<'income' | 'expense'>(transaction?.type ?? defaultType)
-  const [amountDisplay, setAmountDisplay] = useState(
-    transaction ? String(transaction.amount) : ''
-  )
-
   const isEdit = !!transaction
-  const categories = type === 'income' ? incomeCategories : expenseCategories
+
+  // Categories state — starts with server-fetched, refreshes client-side
+  const [incomeCategories, setIncomeCategories] = useState(initialIncomeCategories)
+  const [expenseCategories, setExpenseCategories] = useState(initialExpenseCategories)
 
   const [selectedCategory, setSelectedCategory] = useState(transaction?.category_id ?? '')
   const [selectedAccount, setSelectedAccount] = useState(transaction?.account_id ?? (accounts[0]?.id ?? ''))
   const [selectedDate, setSelectedDate] = useState(transaction?.transaction_date ?? today())
   const [amountValue, setAmountValue] = useState(transaction ? String(transaction.amount) : '')
 
+  // Refresh categories from Supabase client on mount + type change
+  // This ensures custom categories created in another tab are visible
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('categories')
+      .select('id, name, icon, type')
+      .eq('is_archived', false)
+      .order('is_default', { ascending: false })
+      .order('name', { ascending: true })
+      .then(({ data }) => {
+        if (!data) return
+        setIncomeCategories(data.filter(c => c.type === 'income'))
+        setExpenseCategories(data.filter(c => c.type === 'expense'))
+      })
+  }, [])
+
+  const categories = type === 'income' ? incomeCategories : expenseCategories
+
   const handleTypeChange = (newType: 'income' | 'expense') => {
     setType(newType)
     if (!isEdit) setSelectedCategory('')
-  }
-
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmountDisplay(e.target.value.replace(/\D/g, ''))
   }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
