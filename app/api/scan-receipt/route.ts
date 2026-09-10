@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Call Gemini Vision
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
 
     const prompt = `Kamu adalah asisten keuangan. Analisis foto struk/bukti pembayaran ini dan ekstrak informasi berikut dalam format JSON.
 
