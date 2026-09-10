@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ScanningOverlay from '@/components/ui/ScanningOverlay'
 
 interface AddActionSheetProps {
   isOpen: boolean
@@ -29,8 +30,8 @@ const ACTIONS = [
   },
   {
     href: '/transaksi/baru?scan=1',
-    label: 'Scan Struk',
-    desc: 'Foto struk, isi otomatis pakai AI',
+    label: 'Foto Struk',
+    desc: 'Isi transaksi otomatis dari struk',
     iconBg: 'rgba(29,106,245,0.12)',
     iconColor: '#1d6af5',
     icon: 'M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z',
@@ -54,6 +55,7 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     if (isOpen) {
@@ -71,7 +73,6 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
 
   const handleAction = (href: string, isScan: boolean) => {
     if (isScan) {
-      // Trigger camera/gallery picker directly
       fileInputRef.current?.click()
       return
     }
@@ -85,6 +86,9 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
 
     setScanning(true)
     setScanError(null)
+
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
 
     try {
       const formData = new FormData()
@@ -100,10 +104,11 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
       if (!res.ok || data.error) {
         setScanError(data.error ?? 'Gagal membaca struk')
         setScanning(false)
+        URL.revokeObjectURL(url)
+        setPreviewUrl(undefined)
         return
       }
 
-      // Build URL with scan results as params
       const params = new URLSearchParams()
       params.set('scan', '1')
       if (data.amount) params.set('amount', String(data.amount))
@@ -113,11 +118,16 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
 
       onClose()
       setTimeout(() => {
+        setScanning(false)
+        URL.revokeObjectURL(url)
+        setPreviewUrl(undefined)
         router.push(`/transaksi/baru?${params.toString()}`)
       }, 300)
     } catch {
       setScanError('Terjadi kesalahan. Coba lagi.')
       setScanning(false)
+      URL.revokeObjectURL(url)
+      setPreviewUrl(undefined)
     }
 
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -125,7 +135,7 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
 
   return (
     <>
-      {/* Hidden file input for camera */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -163,17 +173,14 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
           boxShadow: '0 -8px 40px rgba(0,0,0,0.18)',
         }}
       >
-        {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-9 h-1 rounded-full bg-gray-200 dark:bg-white/20" />
         </div>
 
-        {/* Title */}
         <div className="px-5 py-3">
           <p className="text-base font-bold text-gray-900 dark:text-white">Tambah</p>
         </div>
 
-        {/* Actions */}
         <div className="px-4 space-y-1">
           {ACTIONS.map(action => (
             <button
@@ -185,37 +192,20 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
                 active:scale-[0.98] transition-all duration-150 text-left
                 disabled:opacity-50"
             >
-              {/* Icon */}
               <div
                 className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: action.iconBg }}
               >
-                {action.scan && scanning ? (
-                  <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24" stroke={action.iconColor}>
-                    <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth="4" />
-                    <path className="opacity-75" fill={action.iconColor} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : (
-                  <svg width={22} height={22} fill="none" stroke={action.iconColor}
-                    viewBox="0 0 24 24" strokeWidth={1.75} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d={action.icon} />
-                  </svg>
-                )}
+                <svg width={22} height={22} fill="none" stroke={action.iconColor}
+                  viewBox="0 0 24 24" strokeWidth={1.75} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d={action.icon} />
+                </svg>
               </div>
 
-              {/* Text */}
               <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-[15px] font-semibold text-gray-900 dark:text-white leading-tight">
-                    {action.scan && scanning ? 'Membaca struk...' : action.label}
-                  </p>
-                  {action.scan && !scanning && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
-                      style={{ backgroundColor: '#1d6af5' }}>
-                      AI
-                    </span>
-                  )}
-                </div>
+                <p className="text-[15px] font-semibold text-gray-900 dark:text-white leading-tight">
+                  {action.label}
+                </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                   {action.desc}
                 </p>
@@ -230,14 +220,12 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
           ))}
         </div>
 
-        {/* Scan error */}
         {scanError && (
           <div className="px-4 pt-2">
             <p className="text-xs text-red-500 text-center">{scanError}</p>
           </div>
         )}
 
-        {/* Cancel */}
         <div className="px-4 pt-3">
           <button
             onClick={onClose}
@@ -253,6 +241,9 @@ export default function AddActionSheet({ isOpen, onClose }: AddActionSheetProps)
           </button>
         </div>
       </div>
+
+      {/* Scanning overlay — fullscreen scanner animation */}
+      <ScanningOverlay visible={scanning} imageUrl={previewUrl} />
     </>
   )
 }
