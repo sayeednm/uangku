@@ -2,6 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse, NextRequest } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
+// Allow up to 60s on Vercel for the Gemini call (default is 10s on Hobby,
+// which would kill slow AI responses mid-flight)
+export const maxDuration = 60
+
 export async function POST(request: NextRequest) {
   // Auth check
   const supabase = await createClient()
@@ -26,8 +30,11 @@ export async function POST(request: NextRequest) {
     if (file.size === 0) {
       return NextResponse.json({ error: 'File kosong' }, { status: 400 })
     }
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Foto terlalu besar (max 10MB)' }, { status: 400 })
+    if (file.size > 4 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Foto terlalu besar (max 4MB). Coba lagi.' }, { status: 400 })
+    }
+    if (file.type && !file.type.startsWith('image/')) {
+      return NextResponse.json({ error: 'File harus berupa gambar' }, { status: 400 })
     }
 
     console.log('[scan-receipt] file:', file.name, file.size, file.type)
@@ -57,17 +64,40 @@ Jika tidak bisa membaca struk atau gambar bukan struk, kembalikan:
 
 Fokus pada nominal TOTAL yang harus dibayar (bukan subtotal atau pajak terpisah).`
 
-    const result = await model.generateContent([
-      { text: prompt },
-      {
-        inlineData: {
-          mimeType,
-          data: base64,
-        },
-      },
-    ])
+    // Retry transient upstream failures (503 overload, 429 rate limit).
+    // Gemini occasionally returns 503 under load — without this, the user's
+    // scan fails outright and they must repeat the whole capture.
+    let responseText = ''
+    const MAX_ATTEMPTS = 3
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const result = await model.generateContent([
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType,
+              data: base64,
+            },
+          },
+        ])
+        responseText = result.response.text().trim()
+        break
+      } catch (aiErr) {
+        const status = (aiErr as { status?: number })?.status
+        const transient = status === 503 || status === 429 || status === 500
+        console.error(`[scan-receipt] attempt ${attempt}/${MAX_ATTEMPTS} failed:`, status ?? aiErr)
+        if (!transient || attempt === MAX_ATTEMPTS) throw aiErr
+        await new Promise(r => setTimeout(r, attempt * 1500))
+      }
+    }
 
-    const responseText = result.response.text().trim()
+    if (!responseText) {
+      return NextResponse.json(
+        { error: 'Layanan AI sedang sibuk. Coba lagi sebentar.' },
+        { status: 503 }
+      )
+    }
+
     console.log('[scan-receipt] Gemini response:', responseText.substring(0, 200))
 
     // Parse JSON response
@@ -84,12 +114,33 @@ Fokus pada nominal TOTAL yang harus dibayar (bukan subtotal atau pajak terpisah)
       return NextResponse.json({ error: parsed.error }, { status: 422 })
     }
 
+    // Sanitize Gemini output before returning it to the form
+    const amount = Math.round(Number(parsed.amount))
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json(
+        { error: 'Nominal tidak terbaca. Coba foto yang lebih jelas.' },
+        { status: 422 }
+      )
+    }
+
+    const VALID_CATEGORIES = [
+      'Makanan', 'Transportasi', 'Belanja', 'Tagihan', 'Rumah', 'Kesehatan',
+      'Hiburan', 'Pendidikan', 'Pakaian', 'Keluarga', 'Lainnya',
+    ]
+    const requested = typeof parsed.category === 'string' ? parsed.category.trim() : ''
+    const category = VALID_CATEGORIES.find(c => c.toLowerCase() === requested.toLowerCase()) ?? 'Lainnya'
+
+    // Only accept well-formed dates (YYYY-MM-DD); anything else is ignored
+    // and the form falls back to today.
+    const rawDate = typeof parsed.date === 'string' ? parsed.date.substring(0, 10) : null
+    const date = rawDate && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null
+
     return NextResponse.json({
-      amount: parsed.amount ?? 0,
-      description: parsed.description ?? '',
-      date: parsed.date ?? null,
-      category: parsed.category ?? 'Lainnya',
-      confidence: parsed.confidence ?? 0,
+      amount,
+      description: typeof parsed.description === 'string' ? parsed.description.substring(0, 200) : '',
+      date,
+      category,
+      confidence: Number(parsed.confidence) || 0,
     })
   } catch (err) {
     console.error('[scan-receipt]', err)

@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import NumpadInput from '@/components/ui/NumpadInput'
 import CustomSelect from '@/components/ui/CustomSelect'
-import ScanReceiptButton from './ScanReceiptButton'
 import type { TransactionWithRefs } from '@/lib/transaksi/queries'
 import type { AccountRow } from '@/lib/rekening/queries'
 import type { CategoryRow } from '@/lib/kategori/queries'
@@ -70,6 +69,8 @@ export default function TransactionForm({
   }, [])
 
   // Auto-fill from scan result in URL params
+  // Re-runs when categories load so scanned category can match even if
+  // server-fetched categories were empty or stale.
   useEffect(() => {
     if (!searchParams.get('scan')) return
     const amount = searchParams.get('amount')
@@ -77,8 +78,8 @@ export default function TransactionForm({
     const date = searchParams.get('date')
     const category = searchParams.get('category')
 
-    if (amount && parseInt(amount) > 0) setAmountValue(amount)
-    if (date) setSelectedDate(date)
+    if (amount && parseInt(amount, 10) > 0) setAmountValue(String(parseInt(amount, 10)))
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date.substring(0, 10))) setSelectedDate(date.substring(0, 10))
     if (desc) {
       setTimeout(() => {
         const descInput = formRef.current?.elements.namedItem('description') as HTMLInputElement | null
@@ -86,50 +87,25 @@ export default function TransactionForm({
       }, 100)
     }
     if (category) {
-      // Will be matched after categories load
       const tryMatch = (cats: typeof incomeCategories, type: 'income' | 'expense') => {
-        const match = cats.find(c => c.name.toLowerCase() === category.toLowerCase())
+        const match = cats.find(c => c.name.trim().toLowerCase() === category.trim().toLowerCase())
         if (match) { setSelectedCategory(match.id); setType(type) }
       }
       tryMatch(expenseCategories, 'expense')
       tryMatch(incomeCategories, 'income')
     }
-  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, incomeCategories, expenseCategories])
 
   const categories = type === 'income' ? incomeCategories : expenseCategories
+
+  // Sync scanned/changed amount into the display inputs (they only react to
+  // defaultValue, which never changes in create mode without this)
+  const amountNum = Number(amountValue) || 0
+  const amountDefaultValue = transaction ? transaction.amount : (amountNum || undefined)
 
   const handleTypeChange = (newType: 'income' | 'expense') => {
     setType(newType)
     if (!isEdit) setSelectedCategory('')
-  }
-
-  // Handle scan result — auto-fill all fields
-  const handleScanResult = (result: {
-    amount: number
-    description: string
-    date: string | null
-    category: string
-    confidence: number
-  }) => {
-    if (result.amount > 0) setAmountValue(String(result.amount))
-    if (result.description) {
-      const descInput = formRef.current?.elements.namedItem('description') as HTMLInputElement | null
-      if (descInput) descInput.value = result.description
-    }
-    if (result.date) setSelectedDate(result.date)
-    // Match category name to category id
-    if (result.category) {
-      const allCats = [...incomeCategories, ...expenseCategories]
-      const match = allCats.find(c =>
-        c.name.toLowerCase() === result.category.toLowerCase()
-      )
-      if (match) {
-        setSelectedCategory(match.id)
-        // Auto-set type based on matched category
-        const catType = incomeCategories.find(c => c.id === match.id) ? 'income' : 'expense'
-        setType(catType)
-      }
-    }
   }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -146,11 +122,6 @@ export default function TransactionForm({
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
-      {/* Scan receipt — only on create */}
-      {!isEdit && (
-        <ScanReceiptButton onResult={handleScanResult} />
-      )}
-
       {error && (
         <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
           {error}
@@ -191,7 +162,7 @@ export default function TransactionForm({
           <CurrencyInput
             id="amount-display"
             name="_amount_display"
-            defaultValue={transaction?.amount}
+            defaultValue={amountDefaultValue}
             disabled={isPending}
             autoFocus={!isEdit}
             onChange={val => setAmountValue(String(val))}
@@ -201,7 +172,7 @@ export default function TransactionForm({
         <div className="lg:hidden">
           <NumpadInput
             name="_amount_numpad"
-            defaultValue={transaction?.amount}
+            defaultValue={amountDefaultValue}
             onChange={val => setAmountValue(String(val))}
           />
         </div>

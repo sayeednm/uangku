@@ -20,7 +20,7 @@ export default function NumpadInput({ name, defaultValue, onChange }: NumpadInpu
   const [digits, setDigits] = useState(defaultValue ? String(defaultValue) : '')
 
   useEffect(() => {
-    if (defaultValue) setDigits(String(defaultValue))
+    setDigits(defaultValue ? String(defaultValue) : '')
   }, [defaultValue])
 
   const press = (key: string) => {

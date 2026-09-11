@@ -69,6 +69,41 @@ export async function updateTransactionAction(id: string, formData: FormData) {
   redirect('/transaksi?success=Transaksi+berhasil+diperbarui')
 }
 
+/**
+ * Quick-save an expense from the scan page (JSON-style server action,
+ * no redirect — caller handles navigation and feedback).
+ */
+export async function quickSaveExpenseAction(input: {
+  amount: number
+  account_id: string
+  category_id: string
+  transaction_date: string
+  description?: string
+}): Promise<{ error?: string }> {
+  if (!Number.isFinite(input.amount) || input.amount <= 0) return { error: 'Nominal harus lebih dari 0' }
+  if (!input.account_id) return { error: 'Rekening wajib dipilih' }
+  if (!input.category_id) return { error: 'Kategori wajib dipilih' }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.transaction_date)) return { error: 'Tanggal tidak valid' }
+
+  try {
+    await createTransaction({
+      type: 'expense',
+      amount: Math.round(input.amount),
+      account_id: input.account_id,
+      category_id: input.category_id,
+      transaction_date: input.transaction_date,
+      description: input.description?.trim() || undefined,
+    })
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Gagal menyimpan transaksi' }
+  }
+
+  revalidatePath('/transaksi')
+  revalidatePath('/dashboard')
+  revalidatePath('/rekening')
+  return {}
+}
+
 export async function deleteTransactionAction(id: string) {
   try {
     await deleteTransaction(id)
