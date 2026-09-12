@@ -261,10 +261,14 @@ export default function ScanClient({ accounts, expenseCategories }: ScanClientPr
   const confidenceColor = confidence >= 0.75 ? '#10b981' : confidence >= 0.4 ? '#f59e0b' : '#ef4444'
 
   return (
-    <div className="min-h-screen bg-[#0A0C14] text-white">
+    <div className={`min-h-screen ${stage === 'review'
+      ? 'bg-[#F0F4FF] dark:bg-[#0A0C14] text-gray-900 dark:text-white'
+      : 'bg-[#0A0C14] text-white'}`}>
       {/* Top bar */}
-      <header className="sticky top-0 z-20 flex items-center gap-3 px-4 h-14
-        bg-[#0A0C14]/95 backdrop-blur-xl border-b border-white/[0.06]">
+      <header className={`sticky top-0 z-20 flex items-center gap-3 px-4 h-14 backdrop-blur-xl border-b
+        ${stage === 'review'
+          ? 'bg-white/95 dark:bg-[#0A0C14]/95 border-gray-200/50 dark:border-white/[0.06]'
+          : 'bg-[#0A0C14]/95 border-white/[0.06]'}`}>
         <BackButton label="" />
         <h1 className="text-base font-bold tracking-tight">Scan Struk</h1>
       </header>
@@ -406,22 +410,22 @@ export default function ScanClient({ accounts, expenseCategories }: ScanClientPr
             <p className="text-xs font-semibold" style={{ color: confidenceColor }}>
               {confidenceLabel}
             </p>
-            <p className="text-xs text-white/40">— periksa detail sebelum menyimpan</p>
+            <p className="text-xs text-gray-400 dark:text-white/40">— periksa detail sebelum menyimpan</p>
           </div>
 
           {/* Amount */}
-          <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl p-4">
-            <label className="block text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">
+          <div className="bg-white dark:bg-white/[0.05] border border-gray-200/60 dark:border-white/[0.08] rounded-2xl p-4">
+            <label className="block text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-2">
               Nominal
             </label>
             <div className="flex items-baseline gap-2">
-              <span className="text-lg text-white/40 font-medium">Rp</span>
+              <span className="text-lg text-gray-400 dark:text-white/40 font-medium">Rp</span>
               <input
                 type="text"
                 inputMode="numeric"
                 value={amount ? formatCurrency(parseInt(amount, 10)) : ''}
                 onChange={e => setAmount(e.target.value.replace(/\D/g, ''))}
-                className="flex-1 bg-transparent text-3xl font-bold tracking-tight outline-none text-white"
+                className="flex-1 min-w-0 bg-transparent text-3xl font-bold tracking-tight outline-none text-gray-900 dark:text-white"
                 placeholder="0"
                 autoFocus
               />
@@ -431,41 +435,35 @@ export default function ScanClient({ accounts, expenseCategories }: ScanClientPr
           {/* Details */}
           <div className="mt-3 space-y-3">
             <div>
-              <label className="block text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-2">
                 Kategori
               </label>
-              <div className="[&_button]:bg-white/[0.06] [&_button]:border-white/[0.09] [&_button]:text-white
-                [&_button_span]:text-white [&_span]:text-white/70">
-                <CustomSelect
-                  id="scan-category"
-                  name="scan-category"
-                  value={categoryId}
-                  onChange={setCategoryId}
-                  placeholder="Pilih kategori"
-                  options={expenseCategories.map(c => ({ value: c.id, label: c.name, icon: c.icon }))}
-                />
-              </div>
+              <CustomSelect
+                id="scan-category"
+                name="scan-category"
+                value={categoryId}
+                onChange={setCategoryId}
+                placeholder="Pilih kategori"
+                options={expenseCategories.map(c => ({ value: c.id, label: c.name, icon: c.icon }))}
+              />
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-2">
                 Rekening
               </label>
-              <div className="[&_button]:bg-white/[0.06] [&_button]:border-white/[0.09] [&_button]:text-white
-                [&_button_span]:text-white [&_span]:text-white/70">
-                <CustomSelect
-                  id="scan-account"
-                  name="scan-account"
-                  value={accountId}
-                  onChange={setAccountId}
-                  placeholder="Pilih rekening"
-                  options={accounts.map(a => ({ value: a.id, label: a.name }))}
-                />
-              </div>
+              <CustomSelect
+                id="scan-account"
+                name="scan-account"
+                value={accountId}
+                onChange={setAccountId}
+                placeholder="Pilih rekening"
+                options={accounts.map(a => ({ value: a.id, label: a.name }))}
+              />
             </div>
 
             <div>
-              <label htmlFor="scan-date" className="block text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">
+              <label htmlFor="scan-date" className="block text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-2">
                 Tanggal
               </label>
               <input
@@ -473,13 +471,13 @@ export default function ScanClient({ accounts, expenseCategories }: ScanClientPr
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="input [color-scheme:dark]"
+                className="input [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
 
             <div>
-              <label htmlFor="scan-desc" className="block text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">
-                Keterangan <span className="font-normal normal-case text-white/30">(opsional)</span>
+              <label htmlFor="scan-desc" className="block text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-2">
+                Keterangan <span className="font-normal normal-case text-gray-300 dark:text-white/30">(opsional)</span>
               </label>
               <input
                 id="scan-desc"
@@ -494,7 +492,7 @@ export default function ScanClient({ accounts, expenseCategories }: ScanClientPr
           </div>
 
           {saveError && (
-            <p className="mt-3 text-sm text-red-400">{saveError}</p>
+            <p className="mt-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>
           )}
 
           {/* Actions */}
@@ -511,18 +509,14 @@ export default function ScanClient({ accounts, expenseCategories }: ScanClientPr
               <button
                 type="button"
                 onClick={rescan}
-                className="py-3 rounded-xl text-sm font-semibold
-                  bg-white/[0.07] border border-white/[0.08] text-gray-300
-                  hover:bg-white/[0.12] active:scale-[0.98] transition-all"
+                className="btn-secondary"
               >
                 Scan Ulang
               </button>
               <button
                 type="button"
                 onClick={continueToForm}
-                className="py-3 rounded-xl text-sm font-semibold
-                  bg-white/[0.07] border border-white/[0.08] text-gray-300
-                  hover:bg-white/[0.12] active:scale-[0.98] transition-all"
+                className="btn-secondary"
               >
                 Edit Detail
               </button>
