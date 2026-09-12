@@ -53,6 +53,7 @@ export default function NotesClient() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [sort, setSort] = useState<NoteSort>('recently_updated')
   const [sortOpen, setSortOpen] = useState(false)
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -99,13 +100,13 @@ export default function NotesClient() {
       if (result && 'error' in result && result.error) {
         setActionError(result.error)
       } else {
-        // Optimistic removal from current view
         setNotes(prev => prev.filter(n => n.id !== note.id))
       }
     })
   }
 
   const togglePin = (note: NoteWithRefs) => {
+    setMenuOpenId(null)
     startTransition(async () => {
       const result = await pinNoteAction(note.id, !note.is_pinned)
       if (result && 'error' in result && result.error) {
@@ -121,13 +122,13 @@ export default function NotesClient() {
   }
 
   const toggleArchive = (note: NoteWithRefs) => {
+    setMenuOpenId(null)
     startTransition(async () => {
       const result = await archiveNoteAction(note.id, !note.is_archived)
       if (result && 'error' in result && result.error) {
         setActionError(result.error)
         return
       }
-      // Archived notes leave the active list, unarchived leave the archive list
       setNotes(prev => prev.filter(n => n.id !== note.id))
     })
   }
@@ -144,11 +145,14 @@ export default function NotesClient() {
   }
 
   const openConfirm = (note: NoteWithRefs, action: 'delete' | 'permanent') => {
+    setMenuOpenId(null)
     setConfirmNote(note)
     setConfirmAction(action)
   }
 
   const showEmptyState = !isLoading && !fetchError && notes.length === 0
+  const pinnedNotes = filter === 'all' ? notes.filter(n => n.is_pinned) : []
+  const otherNotes = filter === 'all' ? notes.filter(n => !n.is_pinned) : notes
 
   return (
     <div>
@@ -197,28 +201,27 @@ export default function NotesClient() {
           </button>
           {sortOpen && (
             <>
-            {/* Click-away layer */}
-            <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden="true" />
-            <div
-              className="absolute right-0 mt-1 w-44 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden animate-scale-in z-20"
-              role="menu"
-            >
-              {SORT_OPTIONS.map(opt => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => { setSort(opt.key); setSortOpen(false) }}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                    sort === opt.key
-                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-semibold'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                  role="menuitem"
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+              <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden="true" />
+              <div
+                className="absolute right-0 mt-1 w-44 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden animate-scale-in z-20"
+                role="menu"
+              >
+                {SORT_OPTIONS.map(opt => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => { setSort(opt.key); setSortOpen(false) }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                      sort === opt.key
+                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-semibold'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                    role="menuitem"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </>
           )}
         </div>
@@ -284,12 +287,39 @@ export default function NotesClient() {
       {/* Notes list */}
       {!isLoading && notes.length > 0 && (
         <div className="space-y-2.5">
-          {notes.map(note => (
+          {filter === 'all' && pinnedNotes.length > 0 && (
+            <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest pt-1">
+              Dipin
+            </p>
+          )}
+          {(filter === 'all' ? pinnedNotes : notes).map(note => (
             <NoteCard
               key={note.id}
               note={note}
               filter={filter}
               isPending={isPending}
+              menuOpen={menuOpenId === note.id}
+              onMenuToggle={open => setMenuOpenId(open ? note.id : null)}
+              onTogglePin={() => togglePin(note)}
+              onToggleArchive={() => toggleArchive(note)}
+              onDelete={() => openConfirm(note, 'delete')}
+              onRestore={() => restore(note)}
+              onPermanentDelete={() => openConfirm(note, 'permanent')}
+            />
+          ))}
+          {filter === 'all' && otherNotes.length > 0 && (
+            <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest pt-3">
+              Lainnya
+            </p>
+          )}
+          {filter === 'all' && otherNotes.map(note => (
+            <NoteCard
+              key={note.id}
+              note={note}
+              filter={filter}
+              isPending={isPending}
+              menuOpen={menuOpenId === note.id}
+              onMenuToggle={open => setMenuOpenId(open ? note.id : null)}
               onTogglePin={() => togglePin(note)}
               onToggleArchive={() => toggleArchive(note)}
               onDelete={() => openConfirm(note, 'delete')}
@@ -329,6 +359,8 @@ interface NoteCardProps {
   note: NoteWithRefs
   filter: NoteFilter
   isPending: boolean
+  menuOpen: boolean
+  onMenuToggle: (open: boolean) => void
   onTogglePin: () => void
   onToggleArchive: () => void
   onDelete: () => void
@@ -337,14 +369,17 @@ interface NoteCardProps {
 }
 
 function NoteCard({
-  note, filter, isPending,
+  note, filter, isPending, menuOpen, onMenuToggle,
   onTogglePin, onToggleArchive, onDelete, onRestore, onPermanentDelete,
 }: NoteCardProps) {
   const done = note.checklist.filter(c => c.is_completed).length
   const total = note.checklist.length
   const badge = TYPE_BADGES[note.note_type]
+  const isTrash = filter === 'trash'
 
   const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max) + '…' : s)
+  const title = note.title?.trim()
+  const preview = title ? note.content : null
 
   return (
     <div
@@ -352,140 +387,156 @@ function NoteCard({
         note.deleted_at ? 'opacity-75' : ''
       }`}
     >
-      <Link href={`/notes/${note.id}/edit`} className="block group">
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              {note.is_pinned && (
-                <svg className="w-3.5 h-3.5 text-[#1d6af5] flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-label="Dipin">
-                  <path d="M16 3v2l-1 1v5l3 2v2h-6v6l-1 1-1-1v-6H4v-2l3-2V6L6 5V3h10z" />
-                </svg>
-              )}
-              <p className={`text-sm font-semibold text-gray-900 dark:text-white truncate ${!note.title ? 'italic text-gray-400 dark:text-gray-500' : ''}`}>
-                {note.title || truncate(note.content ?? 'Tanpa judul', 60) || 'Tanpa judul'}
-              </p>
-            </div>
-            {note.content && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                {truncate(note.content, 140)}
-              </p>
-            )}
-            <div className="flex items-center gap-2 flex-wrap mt-2">
-              {badge && (
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.className}`}>
-                  {badge.label}
-                </span>
-              )}
-              {note.amount != null && (
-                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-200 tabular-nums">
-                  {formatAmount(note.amount)}
-                </span>
-              )}
-              {note.due_date && (
-                <span className={`text-[11px] tabular-nums ${
-                  new Date(note.due_date) < new Date() && note.financial_status === 'pending'
-                    ? 'text-red-500 font-semibold'
-                    : 'text-gray-400 dark:text-gray-500'
-                }`}>
-                  Jatuh tempo {formatDate(note.due_date)}
-                </span>
-              )}
-              {total > 0 && (
-                <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                  ☑ {done}/{total}
-                </span>
-              )}
-            </div>
-            {note.tags.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                {note.tags.map(tag => (
-                  <span
-                    key={tag.id}
-                    className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/[0.07] text-gray-600 dark:text-gray-300"
-                  >
-                    #{tag.name}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* Card body — opens editor */}
+      <Link href={`/notes/${note.id}/edit`} className="block group pr-9">
+        <div className="flex items-start gap-2">
+          {note.is_pinned && !isTrash && (
+            <svg className="w-3.5 h-3.5 text-[#1d6af5] flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24" aria-label="Catatan dipin">
+              <path d="M16 3v2l-1 1v5l3 2v2h-6v6l-1 1-1-1v-6H4v-2l3-2V6L6 5V3h10z" />
+            </svg>
+          )}
+          <p className={`text-sm font-semibold leading-snug break-words ${
+            title
+              ? 'text-gray-900 dark:text-white'
+              : 'italic text-gray-400 dark:text-gray-500'
+          }`}>
+            {title || truncate(note.content ?? '', 60) || 'Tanpa judul'}
+          </p>
         </div>
+
+        {preview && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 break-words">
+            {truncate(preview, 140)}
+          </p>
+        )}
+
+        {(badge || note.amount != null || note.due_date || total > 0 || note.tags.length > 0) && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
+            {badge && (
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.className}`}>
+                {badge.label}
+              </span>
+            )}
+            {note.amount != null && (
+              <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-200 tabular-nums">
+                {formatAmount(note.amount)}
+              </span>
+            )}
+            {note.due_date && (
+              <span className={`text-[11px] tabular-nums ${
+                new Date(note.due_date) < new Date() && note.financial_status === 'pending'
+                  ? 'text-red-500 font-semibold'
+                  : 'text-gray-400 dark:text-gray-500'
+              }`}>
+                Jatuh tempo {formatDate(note.due_date)}
+              </span>
+            )}
+            {total > 0 && (
+              <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                ☑ {done}/{total}
+              </span>
+            )}
+            {note.tags.map(tag => (
+              <span
+                key={tag.id}
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/[0.07] text-gray-600 dark:text-gray-300"
+              >
+                #{tag.name}
+              </span>
+            ))}
+          </div>
+        )}
       </Link>
 
-      {/* Meta + actions row */}
+      {/* Bottom row: date + actions */}
       <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-gray-100 dark:border-white/[0.06]">
         <p className="text-[11px] text-gray-400 dark:text-gray-500 flex-1 min-w-0 truncate">
           {note.deleted_at ? `Dihapus ${formatDate(note.deleted_at)}` : `Diubah ${formatDate(note.updated_at)}`}
         </p>
 
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          {filter === 'trash' ? (
-            <>
-              <button
-                type="button"
-                onClick={onRestore}
-                disabled={isPending}
-                className="p-2 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
-                aria-label="Pulihkan catatan"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a5 5 0 015 5v1m0 0l-3-3m3 3l3-3M3 14v3a2 2 0 002 2h4" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={onPermanentDelete}
-                disabled={isPending}
-                className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                aria-label="Hapus permanen"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={onTogglePin}
-                disabled={isPending}
-                className={`p-2 rounded-lg transition-colors ${
-                  note.is_pinned
-                    ? 'text-[#1d6af5] hover:bg-[#1d6af5]/10'
-                    : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-                aria-label={note.is_pinned ? 'Lepas pin' : 'Pin catatan'}
-              >
-                <svg className="w-4 h-4" fill={note.is_pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 3v2l-1 1v5l3 2v2h-6v6l-1 1-1-1v-6H4v-2l3-2V6L6 5V3h10z" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={onToggleArchive}
-                disabled={isPending}
-                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                aria-label={note.is_archived ? 'Keluarkan dari arsip' : 'Arsipkan catatan'}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={onDelete}
-                disabled={isPending}
-                className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                aria-label="Pindahkan ke sampah"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </>
-          )}
-        </div>
+        {isTrash ? (
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={onRestore}
+              disabled={isPending}
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+            >
+              Pulihkan
+            </button>
+            <button
+              type="button"
+              onClick={onPermanentDelete}
+              disabled={isPending}
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
+            >
+              Hapus permanen
+            </button>
+          </div>
+        ) : (
+          <div className="relative flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => onMenuToggle(!menuOpen)}
+              disabled={isPending}
+              className="w-8 h-8 -mr-1 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Opsi catatan"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="5" cy="12" r="1.8" />
+                <circle cx="12" cy="12" r="1.8" />
+                <circle cx="19" cy="12" r="1.8" />
+              </svg>
+            </button>
+
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => onMenuToggle(false)} aria-hidden="true" />
+                <div
+                  className="absolute right-0 top-9 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden animate-scale-in z-30"
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    onClick={onTogglePin}
+                    className="w-full flex items-center gap-2.5 text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    role="menuitem"
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill={note.is_pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 3v2l-1 1v5l3 2v2h-6v6l-1 1-1-1v-6H4v-2l3-2V6L6 5V3h10z" />
+                    </svg>
+                    {note.is_pinned ? 'Lepas pin' : 'Pin'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onToggleArchive}
+                    className="w-full flex items-center gap-2.5 text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    role="menuitem"
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    {note.is_archived ? 'Keluarkan dari arsip' : 'Arsipkan'}
+                  </button>
+                  <div className="h-px bg-gray-100 dark:bg-white/[0.06]" role="separator" />
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="w-full flex items-center gap-2.5 text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                    role="menuitem"
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Pindahkan ke sampah
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
