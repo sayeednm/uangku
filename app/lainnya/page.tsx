@@ -5,6 +5,12 @@ import AppLayout from '@/components/layout/AppLayout'
 
 const MENU_ITEMS = [
   {
+    href: '/transaksi',
+    label: 'History Transaksi',
+    desc: 'Riwayat pemasukan dan pengeluaran',
+    icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  },
+  {
     href: '/rekening',
     label: 'Rekening & Dompet',
     desc: 'Kelola rekening dan lihat saldo',

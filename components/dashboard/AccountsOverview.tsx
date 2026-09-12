@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils/currency'
 import EmptyState from './EmptyState'
 import type { AccountWithBalance } from '@/lib/dashboard/queries'
-import type { AccountType } from '@/types/database.types'
+import type { Database } from '@/types/database.types'
+
+type AccountType = Database['public']['Enums']['account_type']
 
 const TYPE_LABELS: Record<AccountType, string> = {
   cash: 'Tunai', bank: 'Bank', ewallet: 'E-Wallet', other: 'Lainnya',

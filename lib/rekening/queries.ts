@@ -9,7 +9,7 @@ import type { Database } from '@/types/database.types'
 export type AccountRow = Database['public']['Tables']['accounts']['Row']
 export type AccountInsert = Database['public']['Tables']['accounts']['Insert']
 export type AccountUpdate = Database['public']['Tables']['accounts']['Update']
-export type { AccountType } from '@/types/database.types'
+export type AccountType = Database['public']['Enums']['account_type']
 
 export interface AccountWithBalance extends AccountRow {
   current_balance: number
