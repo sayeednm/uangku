@@ -21,7 +21,15 @@ interface ParseResult {
   confidence: number
 }
 
-type Stage = 'idle' | 'listening' | 'processing' | 'review'
+interface SavedRecord {
+  type: 'income' | 'expense'
+  amount: number
+  description: string
+  category: string
+  accountName: string
+}
+
+type Stage = 'idle' | 'listening' | 'processing' | 'saving' | 'review'
 
 // Minimal typings for the Web Speech API (not in all TS DOM libs)
 interface SpeechRecognitionAlternative {
@@ -62,6 +70,8 @@ const EXAMPLES = [
   { text: 'dapat gaji 3 juta', label: 'Gaji 3jt' },
 ]
 
+const AUTOSAVE_KEY = 'suara-autosave'
+
 const todayISO = () => {
   const d = new Date()
   const y = d.getFullYear()
@@ -78,10 +88,14 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
   const [transcript, setTranscript] = useState('')
   const [voiceError, setVoiceError] = useState<string | null>(null)
 
+  // Auto-save mode (persisted): parsed result is saved directly, no editing
+  const [autoSave, setAutoSave] = useState(false)
+  const [lastSaved, setLastSaved] = useState<SavedRecord | null>(null)
+
   // Manual fallback input
   const [manualText, setManualText] = useState('')
 
-  // Review state
+  // Review state (used when auto-save is off or a save fails)
   const [result, setResult] = useState<ParseResult | null>(null)
   const [txType, setTxType] = useState<'income' | 'expense'>('expense')
   const [amount, setAmount] = useState('')
@@ -95,16 +109,79 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const listeningRef = useRef(false)
 
-  // Validate support once on mount
+  // Validate support + restore auto-save setting once on mount
   useEffect(() => {
     const w = window as unknown as {
       SpeechRecognition?: SpeechRecognitionCtor
       webkitSpeechRecognition?: SpeechRecognitionCtor
     }
     setSpeechSupported(!!(w.SpeechRecognition ?? w.webkitSpeechRecognition))
+    setAutoSave(localStorage.getItem(AUTOSAVE_KEY) === '1')
   }, [])
 
+  const toggleAutoSave = () => {
+    setAutoSave(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem(AUTOSAVE_KEY, next ? '1' : '0')
+      } catch { /* storage unavailable — setting lasts for the session */ }
+      return next
+    })
+    setVoiceError(null)
+  }
+
   const categories = txType === 'income' ? incomeCategories : expenseCategories
+
+  // ── Auto-save directly from the parse result (no editing) ──────────────────
+
+  const autoSaveParsed = useCallback(async (parsed: ParseResult) => {
+    const list = parsed.type === 'income' ? incomeCategories : expenseCategories
+    const catMatch = list.find(
+      c => c.name.trim().toLowerCase() === String(parsed.category ?? '').trim().toLowerCase()
+    )
+    const fallbackCat = list.find(c => c.name.trim().toLowerCase() === 'lainnya') ?? list[0]
+    const acct = accounts[0]
+
+    if (accounts.length === 0 || !fallbackCat) {
+      // Cannot build a valid record silently — fall back to the review form
+      setVoiceError('Rekening atau kategori belum tersedia. Atur dulu, lalu ucapkan lagi.')
+      setStage('idle')
+      return
+    }
+
+    setStage('saving')
+    const { error } = await quickSaveTransactionAction({
+      type: parsed.type,
+      amount: parsed.amount,
+      account_id: acct.id,
+      category_id: catMatch?.id ?? fallbackCat.id,
+      transaction_date: todayISO(),
+      description: parsed.description || undefined,
+    })
+
+    if (error) {
+      // Save refused — drop into the review form prefilled so nothing is lost
+      setResult(parsed)
+      setTxType(parsed.type)
+      setAmount(String(parsed.amount))
+      setDescription(parsed.description ?? '')
+      setDate(todayISO())
+      setCategoryId(catMatch?.id ?? fallbackCat.id)
+      setSaveError(error)
+      setStage('review')
+      return
+    }
+
+    setLastSaved({
+      type: parsed.type,
+      amount: parsed.amount,
+      description: parsed.description,
+      category: catMatch?.name ?? fallbackCat.name,
+      accountName: acct.name,
+    })
+    setTranscript('')
+    setStage('idle')
+  }, [accounts, incomeCategories, expenseCategories])
 
   // ── Parse pipeline ─────────────────────────────────────────────────────────
 
@@ -118,12 +195,12 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
 
     setTranscript(text)
     setVoiceError(null)
+    setLastSaved(null)
     setStage('processing')
 
     try {
-      // Abort gracefully if the network/AI call stalls (flaky mobile data)
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 45_000)
+      const timer = setTimeout(() => controller.abort(), 30_000)
       let res: Response
       try {
         res = await fetch('/api/parse-voice', {
@@ -144,6 +221,12 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
       }
 
       const parsed: ParseResult = data
+
+      if (autoSave) {
+        await autoSaveParsed(parsed)
+        return
+      }
+
       const list = parsed.type === 'income' ? incomeCategories : expenseCategories
       const catMatch = list.find(
         c => c.name.trim().toLowerCase() === String(parsed.category ?? '').trim().toLowerCase()
@@ -164,7 +247,7 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
       )
       setStage('idle')
     }
-  }, [incomeCategories, expenseCategories])
+  }, [autoSave, autoSaveParsed, incomeCategories, expenseCategories])
 
   // ── Speech recognition ─────────────────────────────────────────────────────
 
@@ -179,6 +262,8 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
   }, [])
 
   const startListening = useCallback(() => {
+    if (stage === 'listening' || stage === 'processing' || stage === 'saving') return
+
     const w = window as unknown as {
       SpeechRecognition?: SpeechRecognitionCtor
       webkitSpeechRecognition?: SpeechRecognitionCtor
@@ -187,6 +272,7 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
 
     stopListening()
     setVoiceError(null)
+    setLastSaved(null)
     setTranscript('')
     setStage('listening')
 
@@ -220,7 +306,6 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
     }
 
     recognition.onend = () => {
-      // No final result arrived (e.g. no-speech) only if runParse never fired
       if (listeningRef.current) {
         listeningRef.current = false
         setStage('idle')
@@ -233,7 +318,7 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
       setVoiceError('Tidak bisa memulai mikrofon. Coba lagi.')
       setStage('idle')
     }
-  }, [runParse, stopListening])
+  }, [runParse, stage, stopListening])
 
   // Cleanup on unmount
   useEffect(() => () => stopListening(), [stopListening])
@@ -283,124 +368,150 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const listening = stage === 'listening'
-  const processing = stage === 'processing'
-  const isIncome = txType === 'income'
+  const busy = stage === 'processing' || stage === 'saving'
+  const autoSaveIsOn = autoSave && speechSupported
 
   return (
-    <div className={`min-h-screen text-gray-900 dark:text-white
-      ${stage === 'review' ? 'bg-[#F0F4FF] dark:bg-[#0A0C14]' : 'bg-[#0A0C14] text-white'}`}>
+    <div
+      className={`min-h-screen
+      ${stage === 'review' ? 'bg-[#F0F4FF] dark:bg-[#0A0C14]' : 'bg-[#0A0C14] text-white'}`}
+    >
       {/* Top bar */}
-      <header className={`sticky top-0 z-20 flex items-center gap-3 px-4 h-14 backdrop-blur-xl border-b
-        ${stage === 'review'
-          ? 'bg-white/95 dark:bg-[#0A0C14]/95 border-gray-200/50 dark:border-white/[0.06]'
-          : 'bg-[#0A0C14]/95 border-white/[0.06]'}`}>
+      <header className="sticky top-0 z-30 flex items-center gap-3 px-4 h-14 backdrop-blur-xl border-b bg-[#0A0C14]/95 border-white/[0.06]">
         <BackButton label="" />
-        <h1 className="text-base font-bold tracking-tight">Catat Suara</h1>
+        <h1 className="text-base font-bold tracking-tight flex-1">Catat Suara</h1>
+        {/* Auto-save switch */}
+        <button
+          type="button"
+          onClick={toggleAutoSave}
+          role="switch"
+          aria-checked={autoSaveIsOn}
+          aria-label="Simpan otomatis tanpa edit"
+          className="flex items-center gap-2 active:scale-95 transition-transform"
+        >
+          <span className="hidden sm:block text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: autoSaveIsOn ? '#10b981' : 'rgba(255,255,255,0.4)' }}>
+            Auto
+          </span>
+          <span
+            className="relative w-10 h-6 rounded-full transition-colors duration-200"
+            style={{ backgroundColor: autoSaveIsOn ? '#10b981' : 'rgba(255,255,255,0.12)' }}
+          >
+            <span
+              className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform duration-200"
+              style={{ transform: autoSaveIsOn ? 'translateX(16px)' : 'translateX(0)' }}
+            />
+          </span>
+        </button>
       </header>
+
+      {/* Auto-save explainer (only when enabled) */}
+      {autoSaveIsOn && stage !== 'review' && (
+        <div className="max-w-lg mx-auto px-4">
+          <div className="mt-3 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 animate-fade-in">
+            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.25}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <p className="text-xs text-emerald-300/90 leading-relaxed">
+              <span className="font-semibold">Mode otomatis aktif</span> — cukup bicara, langsung tercatat. Tidak perlu isi form.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Capture stage ── */}
       {stage !== 'review' && (
-        <main className="max-w-lg mx-auto px-4 pb-16">
-          {/* Mic hero */}
-          <div className="pt-8 flex flex-col items-center">
-            {!processing && (
-              <>
-                <div className="relative flex items-center justify-center">
-                  {/* Pulse rings (only while listening) */}
-                  {listening && (
-                    <>
-                      <span className="absolute w-28 h-28 rounded-full pointer-events-none" style={{ backgroundColor: 'rgba(239,68,68,0.18)', animation: 'voiceHalo 1.8s ease-out infinite' }} />
-                      <span className="absolute w-28 h-28 rounded-full pointer-events-none" style={{ backgroundColor: 'rgba(239,68,68,0.12)', animation: 'voiceHalo 1.8s ease-out 0.6s infinite' }} />
-                      <span className="absolute w-28 h-28 rounded-full pointer-events-none" style={{ backgroundColor: 'rgba(239,68,68,0.08)', animation: 'voiceHalo 1.8s ease-out 1.2s infinite' }} />
-                    </>
-                  )}
+        <main className="max-w-lg mx-auto px-4 pb-44 pt-6">
 
-                  <button
-                    type="button"
-                    onClick={listening ? stopListening : startListening}
-                    disabled={processing || !speechSupported}
-                    aria-label={listening ? 'Berhenti mendengarkan' : 'Mulai bicara'}
-                    className="relative w-28 h-28 rounded-full flex items-center justify-center text-white
-                      transition-all duration-200 active:scale-90 disabled:opacity-40 animate-spring"
-                    style={{
-                      backgroundColor: listening ? '#ef4444' : '#1d6af5',
-                      boxShadow: listening
-                        ? '0 10px 32px rgba(239,68,68,0.45)'
-                        : '0 10px 32px rgba(29,106,245,0.45)',
-                    }}
-                  >
-                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                    </svg>
-                  </button>
+          {/* Success after auto-save */}
+          {lastSaved && (
+            <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 px-4 py-4 animate-scale-in mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
                 </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-emerald-400">Tercatat otomatis</p>
+                  <p className="text-xs text-white/70 mt-0.5 truncate">
+                    Rp{formatCurrency(lastSaved.amount)} · {lastSaved.description || lastSaved.category} · {lastSaved.category} · {lastSaved.accountName}
+                  </p>
+                </div>
+              </div>
+              <p className="text-[11px] text-white/40 mt-2">Bicara lagi tanpa berhenti — tap mic saat siap.</p>
+            </div>
+          )}
 
-                {/* Equalizer bars while listening */}
-                {listening ? (
-                  <div className="mt-6 flex items-end gap-1 h-6" aria-hidden="true">
-                    {[0.9, 0.5, 1.3, 0.7, 1.6, 0.6, 1.1, 0.8, 0.5].map((d, i) => (
-                      <span
-                        key={i}
-                        className="w-1 rounded-full"
-                        style={{
-                          background: 'linear-gradient(180deg, #f87171, #ef4444)',
-                          height: '100%',
-                          transformOrigin: 'bottom',
-                          animation: `voiceBar 0.9s ease-in-out ${d}s infinite`,
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mt-6 h-6" />
-                )}
-
-                <p className="text-[15px] font-semibold animate-fade-in">
-                  {listening ? 'Aku mendengarkan...' : speechSupported ? 'Tap, lalu ucapkan transaksinya' : 'Mikrofon tidak didukung browser ini'}
+          {/* State card — single precise indicator for listening / processing / idle */}
+          <div className="rounded-3xl bg-white/[0.04] border border-white/[0.08] px-6 py-8">
+            {listening && (
+              <div className="flex flex-col items-center animate-fade-in">
+                {/* Equalizer — active recording */}
+                <div className="flex items-center gap-1.5 h-10" aria-hidden="true">
+                  {[0.9, 0.4, 1.3, 0.7, 1.6, 0.6, 1.2, 0.8, 0.5].map((d, i) => (
+                    <span
+                      key={i}
+                      className="w-1.5 rounded-full h-10"
+                      style={{
+                        background: 'linear-gradient(180deg, #fca5a5, #ef4444)',
+                        transformOrigin: 'center',
+                        animation: `voiceBar 0.9s ease-in-out ${d}s infinite`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <p className="mt-4 text-sm font-semibold">Mendengarkan…</p>
+                <p className="mt-1 text-xs text-white/45 min-h-[2.5rem] px-2 text-center">
+                  {transcript || 'Bilang aja, misal "beli jajan 20 ribu"'}
                 </p>
-                <p className="mt-1 text-xs text-white/50">
-                  {listening
-                    ? 'Bilang aja, misal: "beli jajan 20 ribu"'
-                    : speechSupported
-                      ? 'Contoh: "beli jajan 20 ribu" atau "dapat gaji 3 juta"'
-                      : 'Tetap bisa kok, ketik manual di bawah'}
-                </p>
-              </>
+              </div>
             )}
 
-            {/* Processing state */}
-            {processing && (
-              <div className="pt-8 flex flex-col items-center animate-fade-in">
-                <div className="relative w-28 h-28 flex items-center justify-center">
-                  <span className="absolute inset-0 rounded-full" style={{ animation: 'voiceSpin 1.1s linear infinite', border: '3px solid rgba(29,106,245,0.2)', borderTopColor: '#1d6af5' }} />
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(29,106,245,0.12)' }}>
-                    <svg className="w-9 h-9 text-[#60a5fa]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                    </svg>
-                  </div>
+            {busy && (
+              <div className="flex flex-col items-center animate-fade-in">
+                {/* Processing — three clean pulse bars, brand blue */}
+                <div className="flex items-center justify-center gap-2 h-10" aria-hidden="true">
+                  {[0, 0.22, 0.44].map((d, i) => (
+                    <span
+                      key={i}
+                      className="w-2 h-8 rounded-full bg-[#1d6af5]"
+                      style={{ animation: `voicePulse 1.1s ease-in-out ${d}s infinite` }}
+                    />
+                  ))}
                 </div>
-                <p className="mt-6 text-[15px] font-semibold">
-                  Menganalisis
-                  <span aria-hidden="true">
-                    <span style={{ animation: 'voiceDots 1.4s infinite steps(1)' }}>.{"\u200B"}</span>
-                    <span style={{ animation: 'voiceDots 1.4s infinite 0.35s steps(1)' }}>.{"\u200B"}</span>
-                    <span style={{ animation: 'voiceDots 1.4s infinite 0.7s steps(1)' }}>.{"\u200B"}</span>
-                  </span>
+                <p className="mt-4 text-sm font-semibold">
+                  {stage === 'saving' ? 'Menyimpan…' : 'Menganalisis dengan AI…'}
                 </p>
-                <p className="mt-1 text-xs text-white/50 max-w-xs text-center truncate">
+                <p className="mt-1 text-xs text-white/45 truncate max-w-full">
                   &ldquo;{transcript}&rdquo;
                 </p>
               </div>
             )}
-          </div>
 
-          {/* Live transcript */}
-          {listening && (
-            <div className="mt-6 px-5 py-4 rounded-2xl bg-white/[0.05] border border-white/[0.08] animate-fade-in">
-              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-1">Aku dengar</p>
-              <p className="text-sm text-white/85 min-h-[1.5rem]">{transcript || '\u00A0'}</p>
-            </div>
-          )}
+            {stage === 'idle' && !lastSaved && (
+              <div className="flex flex-col items-center animate-fade-in">
+                <div className="w-14 h-14 rounded-full bg-[#1d6af5]/10 flex items-center justify-center">
+                  <svg className="w-7 h-7 text-[#60a5fa]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                  </svg>
+                </div>
+                <p className="mt-4 text-sm font-semibold">
+                  {speechSupported ? 'Tap tombol mic, lalu bicara' : 'Mikrofon tidak didukung browser ini'}
+                </p>
+                <p className="mt-1 text-xs text-white/45 text-center">
+                  {speechSupported ? 'Bisa secepat lisanmu bergerak' : 'Tetap bisa kok, ketik manual di bawah'}
+                </p>
+              </div>
+            )}
+
+            {stage === 'idle' && lastSaved && !listening && !busy && (
+              <div className="flex flex-col items-center animate-fade-in">
+                <p className="text-sm text-white/50">Mic siap untuk transaksi berikutnya</p>
+                <p className="mt-1 text-xs text-white/35">atau ketik manual di bawah</p>
+              </div>
+            )}
+          </div>
 
           {voiceError && (
             <div className="mt-4 rounded-2xl bg-red-500/10 border border-red-500/20 px-4 py-3 flex gap-2.5 animate-scale-in">
@@ -412,28 +523,27 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
           )}
 
           {/* Idle extras: example chips + manual input */}
-          {stage === 'idle' && (
-            <div className="mt-8 stagger">
-              {/* Example chips */}
+          {(stage === 'idle' || listening) && (
+            <div className={`${listening ? 'mt-8' : 'mt-8'} stagger`}>
               <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2.5 text-center">
-                Coba ucapkan salah satu ini
+                Contoh kalimat
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {EXAMPLES.map(ex => (
                   <button
                     key={ex.text}
                     type="button"
-                    onClick={() => { setManualText(ex.text); runParse(ex.text) }}
+                    onClick={() => { if (!busy) { setManualText(ex.text); runParse(ex.text) } }}
+                    disabled={busy}
                     className="px-3.5 py-2 rounded-full text-xs font-medium bg-white/[0.06] text-white/80
-                      border border-white/[0.08] hover:bg-white/[0.12] active:scale-95 transition-all"
+                      border border-white/[0.08] hover:bg-white/[0.12] active:scale-95 transition-all disabled:opacity-40"
                   >
                     {ex.label}
                   </button>
                 ))}
               </div>
 
-              {/* Manual input */}
-              <div className="mt-6 rounded-2xl bg-white/[0.04] border border-white/[0.08] p-4">
+              <div className="mt-5 rounded-2xl bg-white/[0.04] border border-white/[0.08] p-4">
                 <label htmlFor="suara-manual" className="block text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">
                   Atau ketik manual
                 </label>
@@ -443,14 +553,14 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
                     type="text"
                     value={manualText}
                     onChange={e => setManualText(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && manualText.trim()) runParse(manualText) }}
+                    onKeyDown={e => { if (e.key === 'Enter' && manualText.trim() && !busy) runParse(manualText) }}
                     placeholder="beli jajan 20 ribu"
                     className="input flex-1 min-w-0"
                   />
                   <button
                     type="button"
                     onClick={() => runParse(manualText)}
-                    disabled={!manualText.trim()}
+                    disabled={!manualText.trim() || busy}
                     className="btn-primary px-5 disabled:opacity-40"
                   >
                     Analisis
@@ -459,30 +569,41 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
               </div>
             </div>
           )}
-
-          <style>{`
-            @keyframes voiceHalo {
-              0%   { transform: scale(1); opacity: 0.8; }
-              100% { transform: scale(2.1); opacity: 0; }
-            }
-            @keyframes voiceBar {
-              0%, 100% { transform: scaleY(0.25); }
-              50%      { transform: scaleY(1); }
-            }
-            @keyframes voiceSpin {
-              from { transform: rotate(0deg); }
-              to   { transform: rotate(360deg); }
-            }
-            @keyframes voiceDots {
-              0%   { opacity: 0.2; }
-              50%  { opacity: 1; }
-              100% { opacity: 0.2; }
-            }
-          `}</style>
         </main>
       )}
 
-      {/* ── Review stage ── */}
+      {/* ── Floating mic FAB — thumb zone, bottom right ── */}
+      {stage !== 'review' && (
+        <button
+          type="button"
+          onClick={listening ? stopListening : startListening}
+          disabled={busy || !speechSupported}
+          aria-label={listening ? 'Berhenti mendengarkan' : 'Mulai bicara'}
+          className="fixed z-40 w-[72px] h-[72px] rounded-full flex items-center justify-center text-white
+            transition-all duration-200 active:scale-90 disabled:opacity-40"
+          style={{
+            // Horizontally centered via margin instead of transform — an inline
+            // transform would clobber Tailwind's active:scale-90 animation
+            left: '50%',
+            marginLeft: '-36px', // half of the 72px button
+            bottom: 'calc(max(1.5rem, env(safe-area-inset-bottom)) + 0.5rem)',
+            backgroundColor: listening ? '#ef4444' : '#1d6af5',
+            boxShadow: listening
+              ? '0 10px 30px rgba(239,68,68,0.5), 0 0 0 8px rgba(239,68,68,0.15)'
+              : '0 10px 30px rgba(29,106,245,0.5), 0 0 0 8px rgba(29,106,245,0.15)',
+          }}
+        >
+          {listening ? (
+            <span className="w-6 h-6 rounded-md bg-white" aria-hidden="true" />
+          ) : (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+            </svg>
+          )}
+        </button>
+      )}
+
+      {/* ── Review stage (shown when auto-save is off or save failed) ── */}
       {stage === 'review' && result && (
         <main className="max-w-lg mx-auto px-4 pb-32 pt-4 animate-fade-up">
           {/* Confidence banner */}
@@ -535,15 +656,12 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
 
           {/* Amount */}
           <div className={`bg-white dark:bg-white/[0.05] border rounded-2xl p-4 transition-colors
-            ${isIncome ? 'border-emerald-500/30' : 'border-red-500/30'}`}
-            
-          
-          >
+            ${txType === 'income' ? 'border-emerald-500/30' : 'border-red-500/30'}`}>
             <label className="block text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-2">
-              {isIncome ? 'Uang Masuk' : 'Uang Keluar'}
+              {txType === 'income' ? 'Uang Masuk' : 'Uang Keluar'}
             </label>
             <div className="flex items-baseline gap-2">
-              <span className={`text-lg font-medium ${isIncome ? 'text-emerald-500' : 'text-red-500'}`}>Rp</span>
+              <span className={`text-lg font-medium ${txType === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>Rp</span>
               <input
                 type="text"
                 inputMode="numeric"
@@ -630,12 +748,12 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
               className={`w-full disabled:opacity-50 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm
                 text-white active:scale-[0.97] disabled:active:scale-100 transition-all duration-200
                 shadow-[0_4px_16px_rgba(0,0,0,0.15)]`}
-              style={{ backgroundColor: isIncome ? '#10b981' : '#1d6af5' }}
+              style={{ backgroundColor: txType === 'income' ? '#10b981' : '#1d6af5' }}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.25}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
-              {saving ? 'Menyimpan...' : isIncome ? 'Simpan Pemasukan' : 'Simpan Pengeluaran'}
+              {saving ? 'Menyimpan…' : txType === 'income' ? 'Simpan Pemasukan' : 'Simpan Pengeluaran'}
             </button>
             <button
               type="button"
@@ -650,6 +768,17 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
           </div>
         </main>
       )}
+
+      <style>{`
+        @keyframes voiceBar {
+          0%, 100% { transform: scaleY(0.25); }
+          50%      { transform: scaleY(1); }
+        }
+        @keyframes voicePulse {
+          0%, 100% { transform: scaleY(0.35); opacity: 0.55; }
+          50%      { transform: scaleY(1); opacity: 1; }
+        }
+      `}</style>
     </div>
   )
 }

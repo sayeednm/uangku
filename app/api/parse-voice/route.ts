@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import { checkAiRateLimit } from '@/lib/utils/rateLimit'
 import { NextResponse, NextRequest } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { checkAiRateLimit } from '@/lib/utils/rateLimit'
 
 export const maxDuration = 60
 
@@ -46,35 +46,40 @@ export async function POST(request: NextRequest) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
+    // Low latency profile: deterministic output with a hard token cap — the
+    // answer is tiny JSON, so capping output shortens generation noticeably.
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-3.6-flash',
+      generationConfig: { temperature: 0, maxOutputTokens: 256 },
+    })
 
-    const prompt = `Kamu adalah asisten keuangan. Ubah kalimat lisan user (bahasa Indonesia santai, hasil speech-to-text) menjadi data transaksi dalam format JSON.
+    // Compact prompt — every token on both sides costs latency. Also brief
+    // retry for transient upstream failures (503 overload / 429 rate limit).
+    const prompt = `Ubah kalimat lisan berikut (bahasa Indonesia santai) menjadi data transaksi. Jawab HANYA JSON, tanpa teks lain:
+{"type":"expense"|"income","amount":<integer>,"description":"<maks 50 karakter>","category":"<dari list bawah>","confidence":<0..1>}
 
-PERHATIKAN:
-- Angka bisa disebut dengan kata: "20 ribu" = 20000, "2 juta" = 2000000, "dua belas setengah ribu" = 12500, "7 k" = 7000.
-- Kalimat bisa present tense atau lampau ("kena kopi 30 ribu", "dapet gaji 3 juta").
+Aturan angka lisan: "20 ribu"=20000, "2 juta"=2000000, "dua belas setengah ribu"=12500, "7 k"=7000.
+type=income untuk uang masuk (gaji, bonus, hadiah); expense untuk belanja/uang keluar.
+Kategori pengeluaran valid: Makanan, Transportasi, Belanja, Tagihan, Rumah, Kesehatan, Hiburan, Pendidikan, Pakaian, Keluarga, Lainnya.
+Kategori pemasukan valid: Gaji, Bonus, Hadiah, Investasi, Lainnya.
+Jika tidak ada nominal: {"error":"Tidak ada nominal yang terdeteksi"}
 
-Kembalikan HANYA JSON, tidak ada teks lain:
-{
-  "type": "expense" jika uang keluar/pengeluaran, atau "income" jika uang masuk/pemasukan/gaji/bonus,
-  "amount": <nominal dalam angka integer, contoh: 20000>,
-  "description": "<deskripsi singkat pembelian, max 50 karakter>",
-  "category": "<kategori yang paling sesuai dari list di bawah>",
-  "confidence": <0.0 sampai 1.0 seberapa yakin hasil ekstraksi>
-}
+Kalimat: "${text}"`
 
-Jika kalimat tidak mengandung transaksi uang (tidak ada nominal), kembalikan:
-{"error": "Tidak ada nominal yang terdeteksi"}
-
-Contoh:
-- "beli jajan 20 ribu" → {"type":"expense","amount":20000,"description":"Jajan","category":"Makanan","confidence":0.9}
-- "dapat gaji 3 juta" → {"type":"income","amount":3000000,"description":"Gaji","category":"Gaji","confidence":0.95}`
-    const result = await model.generateContent([
-      { text: prompt },
-      { text: `Kalimat user: "${text}"\n\nDaftar kategori pengeluaran yang valid: Makanan, Transportasi, Belanja, Tagihan, Rumah, Kesehatan, Hiburan, Pendidikan, Pakaian, Keluarga, Lainnya.` },
-      { text: 'Daftar kategori pemasukan yang valid: Gaji, Bonus, Hadiah, Investasi, Lainnya.' },
-    ])
-    const responseText = result.response.text().trim()
+    let result
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        result = await model.generateContent(prompt)
+        break
+      } catch (aiErr) {
+        const status = (aiErr as { status?: number })?.status
+        const transient = status === 503 || status === 429 || status === 500
+        console.error(`[parse-voice] attempt ${attempt}/2 failed:`, status ?? aiErr)
+        if (!transient || attempt === 2) throw aiErr
+        await new Promise(r => setTimeout(r, 1200))
+      }
+    }
+    const responseText = result!.response.text().trim()
 
     let parsed
     try {
