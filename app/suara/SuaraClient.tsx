@@ -372,12 +372,10 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
   const autoSaveIsOn = autoSave && speechSupported
 
   return (
-    <div
-      className={`min-h-screen
-      ${stage === 'review' ? 'bg-[#F0F4FF] dark:bg-[#0A0C14]' : 'bg-[#0A0C14] text-white'}`}
-    >
+    <div className="min-h-screen bg-[#F0F4FF] dark:bg-[#0A0C14] text-gray-900 dark:text-white">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 flex items-center gap-3 px-4 h-14 backdrop-blur-xl border-b bg-[#0A0C14]/95 border-white/[0.06]">
+      <header className="sticky top-0 z-30 flex items-center gap-3 px-4 h-14 backdrop-blur-xl border-b
+        bg-white/95 dark:bg-[#0A0C14]/95 border-gray-200/50 dark:border-white/[0.06]">
         <BackButton label="" />
         <h1 className="text-base font-bold tracking-tight flex-1">Catat Suara</h1>
         {/* Auto-save switch */}
@@ -390,12 +388,12 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
           className="flex items-center gap-2 active:scale-95 transition-transform"
         >
           <span className="hidden sm:block text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: autoSaveIsOn ? '#10b981' : 'rgba(255,255,255,0.4)' }}>
-            Auto
+            style={{ color: autoSaveIsOn ? '#10b981' : undefined }}>
+            <span className={autoSaveIsOn ? '' : 'text-gray-400 dark:text-white/40'}>Auto</span>
           </span>
           <span
             className="relative w-10 h-6 rounded-full transition-colors duration-200"
-            style={{ backgroundColor: autoSaveIsOn ? '#10b981' : 'rgba(255,255,255,0.12)' }}
+            style={{ backgroundColor: autoSaveIsOn ? '#10b981' : 'rgba(120,130,150,0.25)' }}
           >
             <span
               className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform duration-200"
@@ -409,10 +407,10 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
       {autoSaveIsOn && stage !== 'review' && (
         <div className="max-w-lg mx-auto px-4">
           <div className="mt-3 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 animate-fade-in">
-            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.25}>
+            <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.25}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <p className="text-xs text-emerald-300/90 leading-relaxed">
+            <p className="text-xs text-emerald-700 dark:text-emerald-300/90 leading-relaxed">
               <span className="font-semibold">Mode otomatis aktif</span> — cukup bicara, langsung tercatat. Tidak perlu isi form.
             </p>
           </div>
@@ -428,23 +426,23 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
             <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 px-4 py-4 animate-scale-in mb-5">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-emerald-400">Tercatat otomatis</p>
-                  <p className="text-xs text-white/70 mt-0.5 truncate">
+                  <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Tercatat otomatis</p>
+                  <p className="text-xs text-gray-600 dark:text-white/70 mt-0.5 truncate">
                     Rp{formatCurrency(lastSaved.amount)} · {lastSaved.description || lastSaved.category} · {lastSaved.category} · {lastSaved.accountName}
                   </p>
                 </div>
               </div>
-              <p className="text-[11px] text-white/40 mt-2">Bicara lagi tanpa berhenti — tap mic saat siap.</p>
+              <p className="text-[11px] text-gray-400 dark:text-white/40 mt-2">Tap mic saat siap untuk transaksi berikutnya.</p>
             </div>
           )}
 
           {/* State card — single precise indicator for listening / processing / idle */}
-          <div className="rounded-3xl bg-white/[0.04] border border-white/[0.08] px-6 py-8">
+          <div className="rounded-3xl bg-white dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/[0.08] px-6 py-8 shadow-sm">
             {listening && (
               <div className="flex flex-col items-center animate-fade-in">
                 {/* Equalizer — active recording */}
@@ -462,7 +460,7 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
                   ))}
                 </div>
                 <p className="mt-4 text-sm font-semibold">Mendengarkan…</p>
-                <p className="mt-1 text-xs text-white/45 min-h-[2.5rem] px-2 text-center">
+                <p className="mt-1 text-xs text-gray-400 dark:text-white/45 min-h-[2.5rem] px-2 text-center">
                   {transcript || 'Bilang aja, misal "beli jajan 20 ribu"'}
                 </p>
               </div>
@@ -483,7 +481,7 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
                 <p className="mt-4 text-sm font-semibold">
                   {stage === 'saving' ? 'Menyimpan…' : 'Menganalisis dengan AI…'}
                 </p>
-                <p className="mt-1 text-xs text-white/45 truncate max-w-full">
+                <p className="mt-1 text-xs text-gray-400 dark:text-white/45 truncate max-w-full">
                   &ldquo;{transcript}&rdquo;
                 </p>
               </div>
@@ -492,14 +490,14 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
             {stage === 'idle' && !lastSaved && (
               <div className="flex flex-col items-center animate-fade-in">
                 <div className="w-14 h-14 rounded-full bg-[#1d6af5]/10 flex items-center justify-center">
-                  <svg className="w-7 h-7 text-[#60a5fa]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                  <svg className="w-7 h-7 text-[#1d6af5] dark:text-[#60a5fa]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                   </svg>
                 </div>
                 <p className="mt-4 text-sm font-semibold">
                   {speechSupported ? 'Tap tombol mic, lalu bicara' : 'Mikrofon tidak didukung browser ini'}
                 </p>
-                <p className="mt-1 text-xs text-white/45 text-center">
+                <p className="mt-1 text-xs text-gray-400 dark:text-white/45 text-center">
                   {speechSupported ? 'Bisa secepat lisanmu bergerak' : 'Tetap bisa kok, ketik manual di bawah'}
                 </p>
               </div>
@@ -507,25 +505,25 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
 
             {stage === 'idle' && lastSaved && !listening && !busy && (
               <div className="flex flex-col items-center animate-fade-in">
-                <p className="text-sm text-white/50">Mic siap untuk transaksi berikutnya</p>
-                <p className="mt-1 text-xs text-white/35">atau ketik manual di bawah</p>
+                <p className="text-sm text-gray-500 dark:text-white/50">Mic siap untuk transaksi berikutnya</p>
+                <p className="mt-1 text-xs text-gray-400 dark:text-white/35">atau ketik manual di bawah</p>
               </div>
             )}
           </div>
 
           {voiceError && (
             <div className="mt-4 rounded-2xl bg-red-500/10 border border-red-500/20 px-4 py-3 flex gap-2.5 animate-scale-in">
-              <svg className="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <svg className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
-              <p className="text-sm text-red-400">{voiceError}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{voiceError}</p>
             </div>
           )}
 
           {/* Idle extras: example chips + manual input */}
           {(stage === 'idle' || listening) && (
-            <div className={`${listening ? 'mt-8' : 'mt-8'} stagger`}>
-              <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2.5 text-center">
+            <div className="mt-8 stagger">
+              <p className="text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-2.5 text-center">
                 Contoh kalimat
               </p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -535,16 +533,19 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
                     type="button"
                     onClick={() => { if (!busy) { setManualText(ex.text); runParse(ex.text) } }}
                     disabled={busy}
-                    className="px-3.5 py-2 rounded-full text-xs font-medium bg-white/[0.06] text-white/80
-                      border border-white/[0.08] hover:bg-white/[0.12] active:scale-95 transition-all disabled:opacity-40"
+                    className="px-3.5 py-2 rounded-full text-xs font-medium
+                      bg-gray-100 text-gray-700 border border-gray-200
+                      dark:bg-white/[0.06] dark:text-white/80 dark:border-white/[0.08]
+                      hover:bg-gray-200 dark:hover:bg-white/[0.12]
+                      active:scale-95 transition-all disabled:opacity-40"
                   >
                     {ex.label}
                   </button>
                 ))}
               </div>
 
-              <div className="mt-5 rounded-2xl bg-white/[0.04] border border-white/[0.08] p-4">
-                <label htmlFor="suara-manual" className="block text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">
+              <div className="mt-5 rounded-2xl bg-white dark:bg-white/[0.04] border border-gray-200/60 dark:border-white/[0.08] p-4">
+                <label htmlFor="suara-manual" className="block text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider mb-2">
                   Atau ketik manual
                 </label>
                 <div className="flex gap-2">
@@ -572,7 +573,7 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
         </main>
       )}
 
-      {/* ── Floating mic FAB — thumb zone, bottom right ── */}
+      {/* ── Floating mic FAB — thumb zone, bottom center ── */}
       {stage !== 'review' && (
         <button
           type="button"

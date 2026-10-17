@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/utils/currency'
 import PeriodSelector from '@/components/dashboard/PeriodSelector'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton'
 import DonutChart from './DonutChart'
+import CalendarView from './CalendarView'
 import type { ReportData, DailyTrend } from '@/lib/laporan/queries'
 
 interface ReportClientProps {
@@ -221,6 +222,7 @@ async function fetchReportData(period: PeriodKey): Promise<ReportData> {
 
 export default function ReportClient({ initialPeriod }: ReportClientProps) {
   const [period, setPeriod] = useState<PeriodKey>(initialPeriod)
+  const [view, setView] = useState<'charts' | 'calendar'>('charts')
   const [data, setData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -253,13 +255,38 @@ export default function ReportClient({ initialPeriod }: ReportClientProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Laporan</h1>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{periodLabel}</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Laporan</h1>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{periodLabel}</p>
+          </div>
+          <div className="flex gap-1.5 p-1 rounded-2xl self-start sm:self-auto bg-[#1d6af5]/10">
+            <button
+              type="button"
+              onClick={() => setView('charts')}
+              aria-pressed={view === 'charts'}
+              className={`flex-1 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all active:scale-95
+                ${view === 'charts'
+                  ? 'bg-[#1d6af5] text-white shadow-[0_2px_8px_rgba(29,106,245,0.4)]'
+                  : 'text-gray-500 dark:text-gray-400'}`}
+            >
+              Ringkasan
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('calendar')}
+              aria-pressed={view === 'calendar'}
+              className={`flex-1 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all active:scale-95
+                ${view === 'calendar'
+                  ? 'bg-[#1d6af5] text-white shadow-[0_2px_8px_rgba(29,106,245,0.4)]'
+                  : 'text-gray-500 dark:text-gray-400'}`}
+            >
+              Kalender
+            </button>
+          </div>
         </div>
-        <PeriodSelector value={period} onChange={setPeriod} />
-      </div>
 
-      {loading ? (
+        {view === 'calendar' ? (
+          <CalendarView />
+        ) : (loading ? (
         <DashboardSkeleton />
       ) : error ? (
         <div className="text-center py-16">
@@ -332,7 +359,7 @@ export default function ReportClient({ initialPeriod }: ReportClientProps) {
             <TrendChart data={data!.dailyTrend} isDark={isDark} />
           )}
         </>
-      )}
+        ))}
     </div>
   )
 }
