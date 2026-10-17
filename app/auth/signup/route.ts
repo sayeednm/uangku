@@ -31,5 +31,7 @@ export async function POST(request: NextRequest) {
     redirect('/register?info=check-email')
   }
 
-  redirect('/dashboard')
+  // Session already active (email confirmation disabled) — straight to dashboard
+  const params = new URLSearchParams({ success: 'Akun berhasil dibuat' })
+  redirect(`/dashboard?${params.toString()}`)
 }

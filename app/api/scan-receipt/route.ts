@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { checkAiRateLimit } from '@/lib/utils/rateLimit'
 import { NextResponse, NextRequest } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
@@ -12,6 +13,11 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Per-user cap on expensive Gemini calls (abuse protection)
+  if (!checkAiRateLimit(user.id).allowed) {
+    return NextResponse.json({ error: 'Terlalu sering. Tunggu sebentar lagi, ya.' }, { status: 429 })
   }
 
   const apiKey = process.env.GOOGLE_AI_API_KEY

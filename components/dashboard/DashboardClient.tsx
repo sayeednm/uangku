@@ -27,7 +27,23 @@ export default function DashboardClient({ initialData, initialPeriod }: Dashboar
   const [error, setError] = useState(false)
   const mounted = useRef(false)
   const realtimeReady = useRef(false)
+  const [displayName, setDisplayName] = useState<string | null>(null)
 
+  // Greeting is personal — fetch the user's name once (metadata or email prefix)
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser()
+      .then(({ data }) => {
+        if (!data.user) return
+        const meta = (data.user.user_metadata ?? {}) as { full_name?: string; name?: string }
+        const raw = (meta.full_name || meta.name || data.user.email?.split('@')[0] || '').trim()
+        if (raw) {
+          const firstWord = raw.split(/\s+/)[0]
+          setDisplayName(firstWord.charAt(0).toUpperCase() + firstWord.slice(1))
+        }
+      })
+      .catch(() => { /* greeting stays generic */ })
+  }, [])
   // Fetch only period-sensitive data on period change
   const fetchPeriodData = useCallback(async (p: PeriodKey) => {
     setLoading(true)
@@ -157,16 +173,22 @@ export default function DashboardClient({ initialData, initialPeriod }: Dashboar
   const periodLabel = getPeriodRange(period).label
   const monthLabel = getCurrentMonthLabel()
 
+  // Time-of-day greeting, refreshed on each mount
+  const hour = new Date().getHours()
+  const greeting = hour < 11 ? 'Selamat pagi' : hour < 15 ? 'Selamat siang' : hour < 19 ? 'Selamat sore' : 'Selamat malam'
+
   return (
     <div className="space-y-10">
       <div className="animate-fade-up mb-4">
-        <p className="text-xs text-gray-400 dark:text-gray-500 font-medium tracking-wide">
-          Selamat datang kembali 👋
+        <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold tracking-wide uppercase">
+          {greeting}{displayName ? `, ${displayName}` : ''}
         </p>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight mt-0.5">
-          Ringkasan
+          Ringkasan Keuangan
         </h1>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{monthLabel}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+          {monthLabel} — berikut gambaran keuangan kamu
+        </p>
         <div className="mt-3">
           <PeriodSelector value={period} onChange={setPeriod} />
         </div>

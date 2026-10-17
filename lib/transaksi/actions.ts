@@ -104,6 +104,43 @@ export async function quickSaveExpenseAction(input: {
   return {}
 }
 
+/**
+ * Quick-save any transaction (income or expense) from the voice page
+ * (JSON-style server action, no redirect — caller handles navigation).
+ */
+export async function quickSaveTransactionAction(input: {
+  type: 'income' | 'expense'
+  amount: number
+  account_id: string
+  category_id: string
+  transaction_date: string
+  description?: string
+}): Promise<{ error?: string }> {
+  if (input.type !== 'income' && input.type !== 'expense') return { error: 'Jenis transaksi tidak valid' }
+  if (!Number.isFinite(input.amount) || input.amount <= 0) return { error: 'Nominal harus lebih dari 0' }
+  if (!input.account_id) return { error: 'Rekening wajib dipilih' }
+  if (!input.category_id) return { error: 'Kategori wajib dipilih' }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.transaction_date)) return { error: 'Tanggal tidak valid' }
+
+  try {
+    await createTransaction({
+      type: input.type,
+      amount: Math.round(input.amount),
+      account_id: input.account_id,
+      category_id: input.category_id,
+      transaction_date: input.transaction_date,
+      description: input.description?.trim() || undefined,
+    })
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Gagal menyimpan transaksi' }
+  }
+
+  revalidatePath('/transaksi')
+  revalidatePath('/dashboard')
+  revalidatePath('/rekening')
+  return {}
+}
+
 export async function deleteTransactionAction(id: string) {
   try {
     await deleteTransaction(id)
