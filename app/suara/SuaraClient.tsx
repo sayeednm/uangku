@@ -88,8 +88,10 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
   const [transcript, setTranscript] = useState('')
   const [voiceError, setVoiceError] = useState<string | null>(null)
 
-  // Auto-save mode (persisted): parsed result is saved directly, no editing
-  const [autoSave, setAutoSave] = useState(false)
+  // Auto-save mode (persisted): parsed result is saved directly, no editing.
+  // AUTO-SAVE is the default — the point of the voice flow is capture-and-go;
+  // the user can still switch back to review mode and that choice persists.
+  const [autoSave, setAutoSave] = useState(true)
   const [lastSaved, setLastSaved] = useState<SavedRecord | null>(null)
 
   // Manual fallback input
@@ -116,7 +118,8 @@ export default function SuaraClient({ accounts, incomeCategories, expenseCategor
       webkitSpeechRecognition?: SpeechRecognitionCtor
     }
     setSpeechSupported(!!(w.SpeechRecognition ?? w.webkitSpeechRecognition))
-    setAutoSave(localStorage.getItem(AUTOSAVE_KEY) === '1')
+    // Only an explicit '0' keeps review mode; first visit starts in auto-save
+    setAutoSave(localStorage.getItem(AUTOSAVE_KEY) !== '0')
   }, [])
 
   const toggleAutoSave = () => {

@@ -46,11 +46,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
-    // Low latency profile: deterministic output with a hard token cap — the
-    // answer is tiny JSON, so capping output shortens generation noticeably.
+    // Low latency profile: gemini-3.6-flash is a thinking model — internal
+    // thought tokens count against maxOutputTokens and would starve the tiny
+    // JSON answer if the cap is low (finishReason MAX_TOKENS → unparseable
+    // output). Thinking also costs seconds of latency, so disable it outright
+    // for this simple extraction task. The GenerativeAI SDK types predate
+    // thinkingConfig, hence the small cast.
     const model = genAI.getGenerativeModel({
       model: 'gemini-3.6-flash',
-      generationConfig: { temperature: 0, maxOutputTokens: 256 },
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 2048,
+        thinkingConfig: { thinkingBudget: 0 },
+      } as Parameters<typeof genAI.getGenerativeModel>[0]['generationConfig'],
     })
 
     // Compact prompt — every token on both sides costs latency. Also brief
