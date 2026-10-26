@@ -10,16 +10,17 @@ export default async function EditNotePage({ params }: { params: Promise<{ id: s
   const { id } = await params
 
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) redirect('/login')
-
-  const note = await getNoteById(id)
-  if (!note) notFound()
-
-  const [tags, recentTransactions] = await Promise.all([
+  // Auth + note + editor data in parallel (RLS is enforced by the request cookie)
+  const [userRes, note, tags, recentTransactions] = await Promise.all([
+    supabase.auth.getUser(),
+    getNoteById(id).catch(() => null),
     getUserTags().catch(() => []),
     getRecentTransactions().catch(() => []),
   ])
+  const { data: { user }, error } = userRes
+  if (error || !user) redirect('/login')
+
+  if (!note) notFound()
 
   return (
     <AppLayout userEmail={user.email ?? ''}>

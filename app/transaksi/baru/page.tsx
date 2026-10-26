@@ -15,17 +15,18 @@ interface PageProps {
 
 export default async function TransaksiBaruPage({ searchParams }: PageProps) {
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) redirect('/login')
-
   const params = await searchParams
   const defaultType = params.type === 'income' ? 'income' : 'expense'
 
-  const [accounts, incomeCategories, expenseCategories] = await Promise.all([
+  // Auth + form data in parallel (RLS is enforced by the request cookie)
+  const [userRes, accounts, incomeCategories, expenseCategories] = await Promise.all([
+    supabase.auth.getUser(),
     getAccounts().catch(() => []),
     getCategoriesByType('income').catch(() => []),
     getCategoriesByType('expense').catch(() => []),
   ])
+  const { data: { user }, error } = userRes
+  if (error || !user) redirect('/login')
 
   if (accounts.length === 0) {
     return (

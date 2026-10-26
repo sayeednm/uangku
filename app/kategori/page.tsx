@@ -9,14 +9,20 @@ import ActionFeedback from '@/components/ui/ActionFeedback'
 
 export default async function KategoriPage() {
   const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  // Auth + data in parallel (RLS is enforced by the request cookie)
+  const [userRes, categoriesResult] = await Promise.all([
+    supabase.auth.getUser(),
+    getCategories() as Promise<CategoryRow[]>,
+  ])
+  const { data: { user }, error: authError } = userRes
   if (authError || !user) redirect('/login')
 
-  let categories: CategoryRow[] = []
+  let categories: CategoryRow[]
   let fetchError = false
   try {
-    categories = await getCategories()
+    categories = await categoriesResult
   } catch {
+    categories = []
     fetchError = true
   }
 

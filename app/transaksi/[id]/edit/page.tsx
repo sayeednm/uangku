@@ -17,15 +17,16 @@ export default async function EditTransaksiPage({ params }: PageProps) {
   const { id } = await params
 
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) redirect('/login')
-
-  const [transaction, accounts, incomeCategories, expenseCategories] = await Promise.all([
-    getTransactionById(id),
+  // Auth + form data in parallel (RLS is enforced by the request cookie)
+  const [userRes, transaction, accounts, incomeCategories, expenseCategories] = await Promise.all([
+    supabase.auth.getUser(),
+    getTransactionById(id).catch(() => null),
     getAccounts().catch(() => []),
     getCategoriesByType('income').catch(() => []),
     getCategoriesByType('expense').catch(() => []),
   ])
+  const { data: { user }, error } = userRes
+  if (error || !user) redirect('/login')
 
   if (!transaction) notFound()
 

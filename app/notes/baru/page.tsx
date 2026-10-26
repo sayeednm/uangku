@@ -8,13 +8,14 @@ export const metadata = { title: 'Catatan Baru - Uangku' }
 
 export default async function NewNotePage() {
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) redirect('/login')
-
-  const [tags, recentTransactions] = await Promise.all([
+  // Auth + editor data in parallel (RLS is enforced by the request cookie)
+  const [userRes, tags, recentTransactions] = await Promise.all([
+    supabase.auth.getUser(),
     getUserTags().catch(() => []),
     getRecentTransactions().catch(() => []),
   ])
+  const { data: { user }, error } = userRes
+  if (error || !user) redirect('/login')
 
   return (
     <AppLayout userEmail={user.email ?? ''}>

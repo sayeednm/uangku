@@ -9,10 +9,13 @@ import TransferForm from '@/components/transfer/TransferForm'
 
 export default async function TransferBaruPage() {
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  // Auth + data in parallel (RLS is enforced by the request cookie)
+  const [userRes, accounts] = await Promise.all([
+    supabase.auth.getUser(),
+    getAccounts().catch(() => []),
+  ])
+  const { data: { user }, error } = userRes
   if (error || !user) redirect('/login')
-
-  const accounts = await getAccounts().catch(() => [])
 
   if (accounts.length < 2) {
     return (

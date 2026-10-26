@@ -8,13 +8,14 @@ export const metadata = { title: 'Scan Struk - Uangku' }
 
 export default async function ScanPage() {
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) redirect('/login')
-
-  const [accounts, expenseCategories] = await Promise.all([
+  // Auth + data in parallel (RLS is enforced by the request cookie)
+  const [userRes, accounts, expenseCategories] = await Promise.all([
+    supabase.auth.getUser(),
     getAccounts().catch(() => []),
     getCategoriesByType('expense').catch(() => []),
   ])
+  const { data: { user }, error } = userRes
+  if (error || !user) redirect('/login')
 
   return (
     <ScanClient

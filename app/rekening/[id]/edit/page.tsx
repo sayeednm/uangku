@@ -14,10 +14,13 @@ export default async function EditRekeningPage({ params }: PageProps) {
   const { id } = await params
 
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  // Auth + account in parallel (RLS is enforced by the request cookie)
+  const [userRes, account] = await Promise.all([
+    supabase.auth.getUser(),
+    getAccountById(id).catch(() => null),
+  ])
+  const { data: { user }, error } = userRes
   if (error || !user) redirect('/login')
-
-  const account = await getAccountById(id)
   if (!account) notFound()
 
   // Bind the id into the action

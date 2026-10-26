@@ -13,10 +13,13 @@ interface PageProps {
 export default async function EditKategoriPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  // Auth + category in parallel (RLS is enforced by the request cookie)
+  const [userRes, category] = await Promise.all([
+    supabase.auth.getUser(),
+    getCategoryById(id).catch(() => null),
+  ])
+  const { data: { user }, error } = userRes
   if (error || !user) redirect('/login')
-
-  const category = await getCategoryById(id)
   if (!category || category.is_default) notFound()
 
   const boundAction = updateCategoryAction.bind(null, id)
